@@ -32,13 +32,61 @@ ATOM WINAPI RegisterClassAHook(
 
     if (gInjectionInfo.windowClassName[0] != L'\0')
     {
-        char ansiName[CLASS_NAME_MAX_LENGTH];
+        static char ansiName[CLASS_NAME_MAX_LENGTH];
         size_t convertedCount;
         wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH);
         wndClass.lpszClassName = ansiName;
     }
 
     return RegisterClassA(&wndClass);
+}
+
+ATOM WINAPI RegisterClassExAHook(
+    _In_ const WNDCLASSEXA* lpwcx
+)
+{
+    WNDCLASSEXA wndClassEx;
+    memcpy_s(&wndClassEx, sizeof(WNDCLASSEXA), lpwcx, sizeof(WNDCLASSEXA));
+
+    if (gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        static char ansiName[CLASS_NAME_MAX_LENGTH];
+        size_t convertedCount;
+        wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH);
+        wndClassEx.lpszClassName = ansiName;
+    }
+
+    return RegisterClassExA(&wndClassEx);
+}
+
+ATOM WINAPI RegisterClassWHook(
+    _In_ const WNDCLASSW* lpWndClass
+)
+{
+    WNDCLASSW wndClass;
+    memcpy_s(&wndClass, sizeof(WNDCLASSW), lpWndClass, sizeof(WNDCLASSW));
+
+    if (gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        wndClass.lpszClassName = gInjectionInfo.windowClassName;
+    }
+
+    return RegisterClassW(&wndClass);
+}
+
+ATOM WINAPI RegisterClassExWHook(
+    _In_ const WNDCLASSEXW* lpwcx
+)
+{
+    WNDCLASSEXW wndClassEx;
+    memcpy_s(&wndClassEx, sizeof(WNDCLASSEXW), lpwcx, sizeof(WNDCLASSEXW));
+
+    if (gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        wndClassEx.lpszClassName = gInjectionInfo.windowClassName;
+    }
+
+    return RegisterClassExW(&wndClassEx);
 }
 
 HWND WINAPI CreateWindowExAHook(
@@ -74,12 +122,48 @@ HWND WINAPI CreateWindowExAHook(
         finalWindowName = ansiWindowName;
     }
 
-    int finalX = (gInjectionInfo.windowPosX != 0) ? gInjectionInfo.windowPosX : x;
-    int finalY = (gInjectionInfo.windowPosY != 0) ? gInjectionInfo.windowPosY : y;
+    int finalX = gInjectionInfo.windowPosX;
+    int finalY = gInjectionInfo.windowPosY;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
 
     return CreateWindowExA(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
+        finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
+}
+
+HWND WINAPI CreateWindowExWHook(
+    _In_     DWORD     dwExStyle,
+    _In_opt_ LPCWSTR  lpClassName,
+    _In_opt_ LPCWSTR  lpWindowName,
+    _In_     DWORD     dwStyle,
+    _In_     int       x,
+    _In_     int       y,
+    _In_     int       nWidth,
+    _In_     int       nHeight,
+    _In_opt_ HWND      hWndParent,
+    _In_opt_ HMENU     hMenu,
+    _In_opt_ HINSTANCE hInstance,
+    _In_opt_ LPVOID    lpParam
+)
+{
+    LPCWSTR finalClassName = lpClassName;
+    if (gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        finalClassName = gInjectionInfo.windowClassName;
+    }
+
+    LPCWSTR finalWindowName = lpWindowName;
+    if (gInjectionInfo.windowName[0] != L'\0')
+    {
+        finalWindowName = gInjectionInfo.windowName;
+    }
+
+    int finalX = gInjectionInfo.windowPosX;
+    int finalY = gInjectionInfo.windowPosY;
+    int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
+    int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
+
+    return CreateWindowExW(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
         finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -163,16 +247,20 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 
     memcpy_s(&gInjectionInfo, sizeof(InjectionInfo), inRemoteInfo->UserData, inRemoteInfo->UserDataSize);
 
-    std::wcout << "SplitInject Entered\n";
+    std::wcout << "WinSplitPlusIJ Entered\n";
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC)
     {
         hookFunction("user32", "RegisterClassA", RegisterClassAHook);
+        hookFunction("user32", "RegisterClassExA", RegisterClassExAHook);
+        hookFunction("user32", "RegisterClassW", RegisterClassWHook);
+		hookFunction("user32", "RegisterClassExW", RegisterClassExWHook);
     }
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_WINDOW) == InjectionFlags::HOOK_CREATE_WINDOW)
     {
         hookFunction("user32", "CreateWindowExA", CreateWindowExAHook);
+		hookFunction("user32", "CreateWindowExW", CreateWindowExWHook);
     }
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_SET_WINDOW_POS) == InjectionFlags::HOOK_SET_WINDOW_POS)

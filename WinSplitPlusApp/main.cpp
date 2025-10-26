@@ -93,6 +93,9 @@ int wmain(int argc, wchar_t* argv[])
         else if (lower_arg == L"-posy" && i + 1 < argc) {
             injectionInfo.windowPosY = std::stoul(argv[++i]);
         }
+        else if (lower_arg== L"-setwindowpos") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_SET_WINDOW_POS;
+		}
         else {
             if (gamePath.empty()) {
                 gamePath = original_arg;
