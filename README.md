@@ -4,7 +4,7 @@ Window Hooks to change the Window Class, Window Name, Kill mutex and Create Wind
 
 Usage for CMD:
 ```CMD
-WinSplitPlus.exe -player <Num> -winname -mutex <Mutex Name> -width <Num> -height <Num> -posx <Num> -posy <Num> "<Game Path>" <Game arguments>
+WinSplitPlus.exe -player <Num> -winclass -winname -mutex <"Mutex Name"> -width <Num> -height <Num> -posx <Num> -posy <Num> <"Game Path"> <Game arguments>
 ```
 Example:
 ```CMD
@@ -19,7 +19,7 @@ START WinSplitPlus.exe ^
 -Player 1 ^
 -winclass ^
 -winname ^
--mutex "Mutex Game" ^
+-mutex "Game Mutex" ^
 -width 960 ^
 -height 1080 ^
 -posx 0 ^
