@@ -141,24 +141,107 @@ int wmain(int argc, wchar_t* argv[])
     }
 
     // Inject the DLL
-    WCHAR dllToInject[] = L"WinSplitPlusIJ.dll";
-    DWORD processId = 0;
+    WCHAR exePath[MAX_PATH];
+    GetModuleFileName(NULL, exePath, MAX_PATH);
+    std::wstring exeDir = exePath;
+    size_t lastSlash = exeDir.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos) {
+        exeDir = exeDir.substr(0, lastSlash);
+    }
+    std::wstring pluginsDir = exeDir + L"\\plugins\\";
 
-    std::wcout << L"Launching game: " << gamePath << std::endl;
-    std::wcout << L"Injecting with settings for Player " << playerNumber << L"..." << std::endl;
+    std::vector<std::wstring> dllsToInject;
+    std::wstring searchPath = pluginsDir + L"*.dll";
+    WIN32_FIND_DATA wfd;
+    HANDLE hFind = FindFirstFile(searchPath.c_str(), &wfd);
 
-    NTSTATUS nt = RhCreateAndInject(
-        const_cast<wchar_t*>(gamePath.c_str()),
-        gameArgs.empty() ? NULL : const_cast<wchar_t*>(gameArgs.c_str()),
-        0, EASYHOOK_INJECT_DEFAULT, dllToInject, NULL,
-        &injectionInfo, sizeof(InjectionInfo), &processId
-    );
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            std::wstring dllName = wfd.cFileName;
+            dllsToInject.push_back(pluginsDir + dllName);
+        } while (FindNextFile(hFind, &wfd));
+        FindClose(hFind);
+    }
 
-    if (nt != 0) {
-        std::wcerr << L"Failed to inject DLL: " << RtlGetLastErrorString() << std::endl;
-        Sleep(5000);
+    // 3. Check if we found any DLLs
+    if (dllsToInject.empty()) {
+        Sleep(7000);
+        std::wcerr << L"Error: No .dll files found in " << pluginsDir << std::endl;
+        std::wcerr << L"Please ensure a 'plugins' folder exists next to WinSplitPlus.exe and contains your hook DLLs." << std::endl;
+        //system("pause");
         return 1;
     }
+
+    std::wcout << L"Found " << dllsToInject.size() << L" plugin(s) to inject from " << pluginsDir << std::endl;
+    for (const auto& dll : dllsToInject) {
+        std::wcout << L"  - " << dll << std::endl;
+    }
+
+    // Suspended state is needed for Window hooks
+    PROCESS_INFORMATION pi = {};
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+
+    std::wstring fullCommandLine = L"\"" + gamePath + L"\" " + gameArgs;
+
+    std::wcout << L"Launching game suspended: " << gamePath << std::endl;
+    std::wcout << L"Injecting with settings for Player " << playerNumber << L"..." << std::endl;
+
+    if (!CreateProcess(
+        NULL,
+        const_cast<wchar_t*>(fullCommandLine.c_str()), // Command line
+        NULL,
+        NULL,
+        FALSE,
+        CREATE_SUSPENDED,
+        NULL,
+        NULL,
+        &si, // StartupInfo
+        &pi // ProcessInfo
+    )) {
+		Sleep(7000);
+        std::wcerr << L"Failed to create process: " << GetLastError() << std::endl;
+        std::wcerr << L"Command: " << fullCommandLine << std::endl;
+        //system("pause");
+        return 1;
+    }
+
+    DWORD processId = pi.dwProcessId;
+    bool allInjectionsSucceeded = true;
+
+    for (const auto& dllPath : dllsToInject) {
+        std::wcout << L"Injecting " << dllPath.substr(dllPath.find_last_of(L"\\/") + 1) << L" into process " << processId << L"..." << std::endl;
+
+        NTSTATUS nt = RhInjectLibrary(
+            processId,
+            0,
+            EASYHOOK_INJECT_DEFAULT,
+            const_cast<wchar_t*>(dllPath.c_str()),
+            const_cast<wchar_t*>(dllPath.c_str()),
+            &injectionInfo,
+            sizeof(InjectionInfo)
+        );
+
+        if (nt != 0) {
+            std::wcerr << L"Failed to inject DLL " << dllPath << L": " << RtlGetLastErrorString() << std::endl;
+            allInjectionsSucceeded = false;
+            // We can choose to stop or continue; let's continue
+        }
+    }
+
+    if (!allInjectionsSucceeded) {
+		Sleep(3000);
+        std::wcerr << L"Warning: One or more DLLs failed to inject. Attempting to resume process anyway." << std::endl;
+    }
+    else {
+        std::wcout << L"All injections successful." << std::endl;
+    }
+
+    std::wcout << L"Resuming game process..." << std::endl;
+    ResumeThread(pi.hThread);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
 
     std::wcout << L"Successfully launched and injected into process " << processId << L". The launcher will now exit." << std::endl;
 
