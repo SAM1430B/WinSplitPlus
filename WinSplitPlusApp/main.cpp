@@ -47,6 +47,7 @@ int wmain(int argc, wchar_t* argv[])
     std::wstring gameArgs;
     std::wstring baseMutexName;
     int playerNumber = 1;
+    bool changeWindowName = false;
 
     if (argc < 2) {
         print_usage();
@@ -72,10 +73,11 @@ int wmain(int argc, wchar_t* argv[])
             }
         }
         else if (lower_arg == L"-winclass") {
-            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_WND_PROC;
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_WND_PROC | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-winname") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
+            changeWindowName = true;
         }
         else if (lower_arg == L"-mutex" && i + 1 < argc) {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_MUTEX;
@@ -120,7 +122,7 @@ int wmain(int argc, wchar_t* argv[])
         wcscpy_s(injectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH, finalClassName.c_str());
     }
 
-    if ((injectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_WINDOW) == InjectionFlags::HOOK_CREATE_WINDOW) {
+    if (changeWindowName) {
         std::wstring finalWindowName = L"WinSplitPlus " + std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.windowName, WINDOW_NAME_MAX_LENGTH, finalWindowName.c_str());
     }
@@ -134,10 +136,6 @@ int wmain(int argc, wchar_t* argv[])
         wcscpy_s(injectionInfo.mutexOriginalName, MUTEX_NAME_MAX_LENGTH, baseMutexName.c_str());
         std::wstring finalMutexName = baseMutexName + std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.mutexNewName, MUTEX_NAME_MAX_LENGTH, finalMutexName.c_str());
-    }
-
-    if (injectionInfo.windowSizeX > 0 || injectionInfo.windowSizeY > 0 || injectionInfo.windowPosX > 0 || injectionInfo.windowPosY > 0) {
-        injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_SET_WINDOW_POS;
     }
 
     // Inject the DLL

@@ -108,8 +108,8 @@ HWND WINAPI CreateWindowExAHook(
     if (gInjectionInfo.windowClassName[0] != L'\0')
     {
         static char ansiClassName[CLASS_NAME_MAX_LENGTH];
-        size_t convertedCount;
-        wcstombs_s(&convertedCount, ansiClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH);
+        //size_t convertedCount;
+        wcstombs_s(nullptr, ansiClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         finalClassName = ansiClassName;
     }
 
@@ -117,8 +117,8 @@ HWND WINAPI CreateWindowExAHook(
     if (gInjectionInfo.windowName[0] != L'\0')
     {
         static char ansiWindowName[WINDOW_NAME_MAX_LENGTH];
-        size_t convertedCount;
-        wcstombs_s(&convertedCount, ansiWindowName, WINDOW_NAME_MAX_LENGTH, gInjectionInfo.windowName, WINDOW_NAME_MAX_LENGTH);
+        //size_t convertedCount;
+        wcstombs_s(nullptr, ansiWindowName, WINDOW_NAME_MAX_LENGTH, gInjectionInfo.windowName, _TRUNCATE);
         finalWindowName = ansiWindowName;
     }
 
