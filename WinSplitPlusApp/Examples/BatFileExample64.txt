@@ -1,0 +1,12 @@
+@echo off
+
+START WinSplitPlus64.exe ^
+-Player 1 ^
+-winclass ^
+-winname ^
+-mutex "Mutex Game" ^
+-width 960 ^
+-height 1080 ^
+-posx 0 ^
+-posy 0 ^
+"C:\Game\Game.exe" -window

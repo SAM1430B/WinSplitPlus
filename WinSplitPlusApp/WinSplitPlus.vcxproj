@@ -174,7 +174,7 @@ copy "$(ProjectDir)Examples\BatFileExample.txt" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)lib\EasyHook\EasyHook64.dll" "$(TargetDir)"
-copy "$(ProjectDir)Examples\BatFileExample.txt" "$(TargetDir)"</Command>
+copy "$(ProjectDir)Examples\BatFileExample64.txt" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

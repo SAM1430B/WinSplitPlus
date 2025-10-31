@@ -161,11 +161,10 @@ int wmain(int argc, wchar_t* argv[])
         FindClose(hFind);
     }
 
-    // 3. Check if we found any DLLs
     if (dllsToInject.empty()) {
-        Sleep(7000);
         std::wcerr << L"Error: No .dll files found in " << pluginsDir << std::endl;
         std::wcerr << L"Please ensure a 'plugins' folder exists next to WinSplitPlus.exe and contains your hook DLLs." << std::endl;
+        Sleep(7000);
         //system("pause");
         return 1;
     }
@@ -197,9 +196,9 @@ int wmain(int argc, wchar_t* argv[])
         &si, // StartupInfo
         &pi // ProcessInfo
     )) {
-		Sleep(7000);
         std::wcerr << L"Failed to create process: " << GetLastError() << std::endl;
         std::wcerr << L"Command: " << fullCommandLine << std::endl;
+        Sleep(7000);
         //system("pause");
         return 1;
     }
@@ -222,14 +221,14 @@ int wmain(int argc, wchar_t* argv[])
 
         if (nt != 0) {
             std::wcerr << L"Failed to inject DLL " << dllPath << L": " << RtlGetLastErrorString() << std::endl;
+            Sleep(5000);
             allInjectionsSucceeded = false;
-            // We can choose to stop or continue; let's continue
         }
     }
 
     if (!allInjectionsSucceeded) {
-		Sleep(3000);
         std::wcerr << L"Warning: One or more DLLs failed to inject. Attempting to resume process anyway." << std::endl;
+        Sleep(5000);
     }
     else {
         std::wcout << L"All injections successful." << std::endl;
