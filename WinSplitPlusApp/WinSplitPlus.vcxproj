@@ -178,18 +178,16 @@ copy "$(ProjectDir)Examples\BatFileExample64.txt" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="PlayerInfo.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\constants.h" />
-    <ClInclude Include="include\PlayerInfo.hpp" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="Version.rc" />
     <ResourceCompile Include="WinSplitPlus.rc" />
   </ItemGroup>
   <ItemGroup>

@@ -14,7 +14,7 @@ And modified by @SAM1430B from splitscreen.me .
 #include <string>
 #include <mutex>
 
-#include "include\InectionInfo.h"
+#include "include\InjectionInfo.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -206,6 +206,24 @@ HANDLE WINAPI CreateMutexAHook(
     return CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
 }
 
+HANDLE WINAPI CreateMutexWHook(
+    _In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+    _In_      BOOL                   bInitialOwner,
+    _In_opt_ LPCWSTR                lpName
+)
+{
+    if (!lpName) {
+        return CreateMutexW(lpMutexAttributes, bInitialOwner, lpName);
+    }
+
+    if (wcscmp(gInjectionInfo.mutexOriginalName, lpName) == 0)
+    {
+        return CreateMutexW(lpMutexAttributes, bInitialOwner, gInjectionInfo.mutexNewName);
+    }
+
+    return CreateMutexW(lpMutexAttributes, bInitialOwner, lpName);
+}
+
 //Hook Creation Functions//
 void hookFunction(const char* module, const char* function, PVOID hookFunction)
 {
@@ -239,28 +257,32 @@ extern "C" void __declspec(dllexport) __stdcall NativeInjectionEntryPoint(REMOTE
 
 void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 {
-    if (inRemoteInfo->UserDataSize != sizeof(InjectionInfo))
-    {
-        std::wcerr << "InjectionInfo invalid" << std::endl;
-        return;
-    }
-
+    if (inRemoteInfo->UserDataSize != sizeof(InjectionInfo)) return;
     memcpy_s(&gInjectionInfo, sizeof(InjectionInfo), inRemoteInfo->UserData, inRemoteInfo->UserDataSize);
 
     std::wcout << "WinSplitPlusIJ Entered\n";
 
+    bool doAnsi = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_ANSI) == InjectionFlags::HOOK_ANSI;
+    bool doUnicode = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_UNICODE) == InjectionFlags::HOOK_UNICODE;
+
+    bool doStd = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_STANDARD) == InjectionFlags::HOOK_STANDARD;
+    bool doEx = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_EXTENDED) == InjectionFlags::HOOK_EXTENDED;
+
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC)
     {
-        hookFunction("user32", "RegisterClassA", RegisterClassAHook);
-        hookFunction("user32", "RegisterClassExA", RegisterClassExAHook);
-        hookFunction("user32", "RegisterClassW", RegisterClassWHook);
-		hookFunction("user32", "RegisterClassExW", RegisterClassExWHook);
+        // ANSI Matrix
+        if (doAnsi && doStd) hookFunction("user32", "RegisterClassA", RegisterClassAHook);
+        if (doAnsi && doEx)  hookFunction("user32", "RegisterClassExA", RegisterClassExAHook);
+
+        // Unicode Matrix
+        if (doUnicode && doStd) hookFunction("user32", "RegisterClassW", RegisterClassWHook);
+        if (doUnicode && doEx)  hookFunction("user32", "RegisterClassExW", RegisterClassExWHook);
     }
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_WINDOW) == InjectionFlags::HOOK_CREATE_WINDOW)
     {
-        hookFunction("user32", "CreateWindowExA", CreateWindowExAHook);
-		hookFunction("user32", "CreateWindowExW", CreateWindowExWHook);
+        if (doAnsi) hookFunction("user32", "CreateWindowExA", CreateWindowExAHook);
+        if (doUnicode) hookFunction("user32", "CreateWindowExW", CreateWindowExWHook);
     }
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_SET_WINDOW_POS) == InjectionFlags::HOOK_SET_WINDOW_POS)
@@ -270,7 +292,8 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_MUTEX) == InjectionFlags::HOOK_CREATE_MUTEX)
     {
-        hookFunction("Kernel32", "CreateMutexA", CreateMutexAHook);
+        if (doAnsi) hookFunction("Kernel32", "CreateMutexA", CreateMutexAHook);
+        if (doUnicode) hookFunction("Kernel32", "CreateMutexW", CreateMutexWHook);
     }
 
     RhWakeUpProcess();

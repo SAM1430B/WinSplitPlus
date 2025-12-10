@@ -14,7 +14,7 @@ And modified by @SAM1430B from splitscreen.me .
 #include <algorithm>
 #include <cwctype>
 
-#include "InectionInfo.h"
+#include "InjectionInfo.h"
 
 // Helper function to convert a string to lowercase
 std::wstring to_lower(const std::wstring& str) {
@@ -27,17 +27,18 @@ std::wstring to_lower(const std::wstring& str) {
 void print_usage() {
     std::wcout << L"Usage: WinSplitPlus.exe [options] C:\\path\\to\\game.exe [game arguments]\n"
         << L"Options:\n"
-        << L"  -Player <Number>       Identifier for this game instance (appended to names).\n"
-        << L"  -winclass              Enable Window class hook.\n"
-        << L"  -winname               Enable Window Name hook.\n"
-        << L"  -mutex <baseMutexName> Set the base name for the game's mutex.\n"
-        << L"  -width <width>         Set the window width.\n"
-        << L"  -height <height>       Set the window height.\n"
-        << L"  -posx <x>              Set the window X position.\n"
-        << L"  -posy <y>              Set the window Y position.\n\n"
-        << L"  Command Line Example:\n\n"
-        << L"  WinSplitPlus.exe -Player 1 -winclass -winname -mutex FarCryMutex -width 1280 -height 720 -posx 100 -posy 100\n"
-        << L"  \"C:\\Games\\FarCry\\Bin32\\FarCry.exe\" -window\n\n";
+        << L"  -Player <Number>        Identifier.\n"
+        << L"  -WinClass               Enable Window class hook.\n"
+        << L"  -WinName                Enable Window Name hook.\n"
+        << L"  -Mutex <Name>           Hook Mutex.\n"
+        << L"  -Width <W> -Height <H>  Set Window Size.\n"
+        << L"  -Posx <X> -Posy <Y>     Set Window Position.\n\n"
+        << L"FILTERS:\n"
+        << L"  -A                      Enable ANSI hooks (e.g. RegisterClassA).\n"
+        << L"  -W                      Enable Unicode hooks (e.g. RegisterClassW).\n"
+        << L"  -Std                    Enable Standard hooks (e.g. RegisterClass).\n"
+        << L"  -Ex                     Enable Extended hooks (e.g. RegisterClassEx).\n\n"
+        << L"  (If no filters are provided, ALL are enabled by default.)\n\n";
 }
 
 int wmain(int argc, wchar_t* argv[])
@@ -49,9 +50,12 @@ int wmain(int argc, wchar_t* argv[])
     int playerNumber = 1;
     bool changeWindowName = false;
 
+    bool hasCharsetFilter = false; // -A or -W?
+    bool hasVariantFilter = false; // -Std or -Ex?
+
     if (argc < 2) {
         print_usage();
-		system("pause");
+        system("pause");
         return 1;
     }
 
@@ -95,13 +99,27 @@ int wmain(int argc, wchar_t* argv[])
         else if (lower_arg == L"-posy" && i + 1 < argc) {
             injectionInfo.windowPosY = std::stoul(argv[++i]);
         }
-        else if (lower_arg== L"-setwindowpos") {
+        else if (lower_arg == L"-setwindowpos") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_SET_WINDOW_POS;
-		}
+        }
+        else if (lower_arg == L"-a") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI;
+            hasCharsetFilter = true;
+        }
+        else if (lower_arg == L"-w") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_UNICODE;
+            hasCharsetFilter = true;
+        }
+        else if (lower_arg == L"-std") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_STANDARD;
+            hasVariantFilter = true;
+        }
+        else if (lower_arg == L"-ex") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_EXTENDED;
+            hasVariantFilter = true;
+        }
         else {
-            if (gamePath.empty()) {
-                gamePath = original_arg;
-            }
+            if (gamePath.empty()) gamePath = original_arg;
             else {
                 if (gameArgs.length() > 0) gameArgs += L" ";
                 gameArgs += L"\"" + original_arg + L"\"";
@@ -117,6 +135,16 @@ int wmain(int argc, wchar_t* argv[])
     }
     
     // Construct final names based on Player number
+    if (!hasCharsetFilter) {
+        injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI | InjectionFlags::HOOK_UNICODE;
+        std::wcout << L"Defaulting to ANSI + Unicode." << std::endl;
+    }
+
+    if (!hasVariantFilter) {
+        injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_STANDARD | InjectionFlags::HOOK_EXTENDED;
+        std::wcout << L"Defaulting to Standard + Extended variants." << std::endl;
+    }
+
     if ((injectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC) {
         std::wstring finalClassName = L"WinSplitPlus" + std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH, finalClassName.c_str());
@@ -130,7 +158,7 @@ int wmain(int argc, wchar_t* argv[])
     if ((injectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_MUTEX) == InjectionFlags::HOOK_CREATE_MUTEX) {
         if (baseMutexName.empty()) {
             std::wcerr << L"Error: -mutex flag was used, but no base mutex name was provided." << std::endl;
-            Sleep(3000);
+            Sleep(5000);
             return 1;
         }
         wcscpy_s(injectionInfo.mutexOriginalName, MUTEX_NAME_MAX_LENGTH, baseMutexName.c_str());
@@ -164,7 +192,7 @@ int wmain(int argc, wchar_t* argv[])
     if (dllsToInject.empty()) {
         std::wcerr << L"Error: No .dll files found in " << pluginsDir << std::endl;
         std::wcerr << L"Please ensure a 'plugins' folder exists next to WinSplitPlus.exe and contains your hook DLLs." << std::endl;
-        Sleep(7000);
+        Sleep(10000);
         //system("pause");
         return 1;
     }
@@ -221,8 +249,8 @@ int wmain(int argc, wchar_t* argv[])
 
         if (nt != 0) {
             std::wcerr << L"Failed to inject DLL " << dllPath << L": " << RtlGetLastErrorString() << std::endl;
-            Sleep(5000);
             allInjectionsSucceeded = false;
+            Sleep(5000);
         }
     }
 

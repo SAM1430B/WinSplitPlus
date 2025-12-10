@@ -1,0 +1,50 @@
+#include <windows.h>
+
+#ifdef _WIN64
+#define FILE_NAME "WinSplitPlusIJ64.dll"
+#define PROD_NAME "WinSplitPlusIJ (64-bit)"
+#else
+#define FILE_NAME "WinSplitPlusIJ32.dll"
+#define PROD_NAME "WinSplitPlusIJ (32-bit)"
+#endif
+
+#define VER_FILEVERSION             1,2,0,0
+#define VER_FILEVERSION_STR         "1.2.0.0\0"
+
+#define VER_PRODUCTVERSION          1,2,0,0
+#define VER_PRODUCTVERSION_STR      "1.2.0.0\0"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     VER_FILEVERSION
+PRODUCTVERSION  VER_PRODUCTVERSION
+FILEFLAGSMASK   0x3fL
+#ifdef _DEBUG
+FILEFLAGS       0x1L
+#else
+FILEFLAGS       0x0L
+#endif
+FILEOS          0x40004L
+FILETYPE        0x2L      // VFT_DLL
+FILESUBTYPE     0x0L
+BEGIN
+BLOCK "StringFileInfo"
+BEGIN
+// 040904b0 = U.S. English, Unicode (1200)
+BLOCK "040904b0"
+BEGIN
+VALUE "CompanyName", "https://github.com/SAM1430B/WinSplitPlus"
+VALUE "FileDescription", "Window Hooks to run multi instances"
+VALUE "FileVersion", VER_FILEVERSION_STR
+VALUE "InternalName", FILE_NAME
+VALUE "LegalCopyright", "Copyright (C) 2025"
+VALUE "OriginalFilename", FILE_NAME
+VALUE "ProductName", PROD_NAME
+VALUE "ProductVersion", VER_PRODUCTVERSION_STR
+END
+END
+BLOCK "VarFileInfo"
+BEGIN
+// 0x409 = U.S. English, 1200 = Unicode
+VALUE "Translation", 0x409, 1200
+END
+END
