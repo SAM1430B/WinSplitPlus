@@ -2,11 +2,12 @@
 
 START WinSplitPlus.exe ^
 -Player 1 ^
--winclass ^
--winname ^
--mutex "Mutex Game" ^
--width 960 ^
--height 1080 ^
--posx 0 ^
--posy 0 ^
+-A ^
+-WinClass ^
+-WinName ^
+-Mutex "MutexGame" ^
+-Width 960 ^
+-Height 1080 ^
+-Posx 0 ^
+-Posy 0 ^
 "C:\Game\Game.exe" -window

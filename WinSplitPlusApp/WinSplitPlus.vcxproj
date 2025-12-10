@@ -194,6 +194,10 @@ copy "$(ProjectDir)Examples\BatFileExample64.txt" "$(TargetDir)"</Command>
     <Image Include="Resources\new_launcher_icon.ico" />
     <Image Include="Resources\new_launcher_icon.png" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Examples\BatFileExample.txt" />
+    <Text Include="Examples\BatFileExample64.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(SolutionDir)packages\EasyHookNativePackage.redist.2.7.6035\build\native\EasyHookNativePackage.redist.targets" Condition="Exists('packages\EasyHookNativePackage.redist.2.7.6035\build\native\EasyHookNativePackage.redist.targets')" />
