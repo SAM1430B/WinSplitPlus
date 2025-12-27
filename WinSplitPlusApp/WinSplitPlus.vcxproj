@@ -106,6 +106,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\EasyHook;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>EasyHook32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -149,8 +153,9 @@
     </Link>
     <PostBuildEvent>
       <Command>echo Copying EasyHook DLL...
-copy "$(SolutionDir)lib\EasyHook\EasyHook32.dll" "$(TargetDir)"
-copy "$(ProjectDir)Examples\BatFileExample.txt" "$(TargetDir)"</Command>
+xcopy "$(SolutionDir)lib\EasyHook\EasyHook32.dll" "$(TargetDir)" /Y
+xcopy "$(ProjectDir)Examples\BatFileExample.txt" "$(TargetDir)" /Y
+if not exist "$(TargetDir)\plugins" md "$(TargetDir)\plugins"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -175,8 +180,9 @@ copy "$(ProjectDir)Examples\BatFileExample.txt" "$(TargetDir)"</Command>
       <AdditionalDependencies>EasyHook64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)lib\EasyHook\EasyHook64.dll" "$(TargetDir)"
-copy "$(ProjectDir)Examples\BatFileExample64.txt" "$(TargetDir)"</Command>
+      <Command>xcopy "$(SolutionDir)lib\EasyHook\EasyHook64.dll" "$(TargetDir)" /Y
+xcopy "$(ProjectDir)Examples\BatFileExample64.txt" "$(TargetDir)" /Y
+if not exist "$(TargetDir)\plugins" md "$(TargetDir)\plugins"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

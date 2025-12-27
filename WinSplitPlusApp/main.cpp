@@ -174,9 +174,35 @@ int wmain(int argc, wchar_t* argv[])
     if (lastSlash != std::wstring::npos) {
         exeDir = exeDir.substr(0, lastSlash);
     }
-    std::wstring pluginsDir = exeDir + L"\\plugins\\";
 
     std::vector<std::wstring> dllsToInject;
+
+    std::wstring coreDllName;
+
+#if defined(_WIN64)
+    // 64-bit Build
+    std::wcout << L"Launcher Build: x64" << std::endl;
+    coreDllName = L"WinSplitPlusIJ64.dll";
+#else
+    // 32-bit Build
+    std::wcout << L"Launcher Build: x32 (x86)" << std::endl;
+    coreDllName = L"WinSplitPlusIJ32.dll";
+#endif
+
+    // Add the Core DLL to the top of the list
+    std::wstring coreDllPath = exeDir + L"\\" + coreDllName;
+
+    if (GetFileAttributesW(coreDllPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        dllsToInject.push_back(coreDllPath);
+        std::wcout << L"Added Core DLL: " << coreDllName << std::endl;
+    }
+    else {
+        std::wcerr << L"CRITICAL ERROR: Core DLL not found at: " << coreDllPath << std::endl;
+        Sleep(10000);
+        return 1;
+    }
+
+    std::wstring pluginsDir = exeDir + L"\\plugins\\";
     std::wstring searchPath = pluginsDir + L"*.dll";
     WIN32_FIND_DATA wfd;
     HANDLE hFind = FindFirstFile(searchPath.c_str(), &wfd);
@@ -188,19 +214,10 @@ int wmain(int argc, wchar_t* argv[])
         } while (FindNextFile(hFind, &wfd));
         FindClose(hFind);
     }
-
-    if (dllsToInject.empty()) {
-        std::wcerr << L"Error: No .dll files found in " << pluginsDir << std::endl;
-        std::wcerr << L"Please ensure a 'plugins' folder exists next to WinSplitPlus.exe and contains your hook DLLs." << std::endl;
-        Sleep(10000);
-        //system("pause");
-        return 1;
+    else {
+        std::wcout << L"No plugins found in " << pluginsDir << L" (Only Core DLL will be injected)." << std::endl;
     }
 
-    std::wcout << L"Found " << dllsToInject.size() << L" plugin(s) to inject from " << pluginsDir << std::endl;
-    for (const auto& dll : dllsToInject) {
-        std::wcout << L"  - " << dll << std::endl;
-    }
 
     // Suspended state is needed for Window hooks
     PROCESS_INFORMATION pi = {};
@@ -210,7 +227,7 @@ int wmain(int argc, wchar_t* argv[])
     std::wstring fullCommandLine = L"\"" + gamePath + L"\" " + gameArgs;
 
     std::wcout << L"Launching game suspended: " << gamePath << std::endl;
-    std::wcout << L"Injecting with settings for Player " << playerNumber << L"..." << std::endl;
+    std::wcout << L"Injecting " << dllsToInject.size() << L" DLLs..." << std::endl;
 
     if (!CreateProcess(
         NULL,
@@ -227,7 +244,6 @@ int wmain(int argc, wchar_t* argv[])
         std::wcerr << L"Failed to create process: " << GetLastError() << std::endl;
         std::wcerr << L"Command: " << fullCommandLine << std::endl;
         Sleep(7000);
-        //system("pause");
         return 1;
     }
 
@@ -235,7 +251,7 @@ int wmain(int argc, wchar_t* argv[])
     bool allInjectionsSucceeded = true;
 
     for (const auto& dllPath : dllsToInject) {
-        std::wcout << L"Injecting " << dllPath.substr(dllPath.find_last_of(L"\\/") + 1) << L" into process " << processId << L"..." << std::endl;
+        std::wcout << L"Injecting " << dllPath.substr(dllPath.find_last_of(L"\\/") + 1) << L"..." << std::endl;
 
         NTSTATUS nt = RhInjectLibrary(
             processId,
@@ -250,12 +266,11 @@ int wmain(int argc, wchar_t* argv[])
         if (nt != 0) {
             std::wcerr << L"Failed to inject DLL " << dllPath << L": " << RtlGetLastErrorString() << std::endl;
             allInjectionsSucceeded = false;
-            Sleep(5000);
         }
     }
 
     if (!allInjectionsSucceeded) {
-        std::wcerr << L"Warning: One or more DLLs failed to inject. Attempting to resume process anyway." << std::endl;
+        std::wcerr << L"Warning: One or more DLLs failed to inject." << std::endl;
         Sleep(5000);
     }
     else {
