@@ -17,7 +17,7 @@ For Batch file example:
 ```batch
 @echo off
 
-START WinSplitPlus.exe ^
+WinSplitPlus.exe ^
 -Player 1 ^
 -A ^
 -WinClass ^
