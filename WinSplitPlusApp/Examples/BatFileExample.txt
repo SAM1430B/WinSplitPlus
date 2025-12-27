@@ -1,6 +1,6 @@
 @echo off
 
-START WinSplitPlus.exe ^
+WinSplitPlus.exe ^
 -Player 1 ^
 -A ^
 -WinClass ^
