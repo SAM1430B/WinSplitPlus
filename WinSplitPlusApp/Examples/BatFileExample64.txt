@@ -5,9 +5,10 @@ WinSplitPlus64.exe ^
 -W ^
 -WinClass ^
 -WinName ^
+-FindWindow ^
 -Mutex "MutexGame" ^
 -Width 960 ^
 -Height 1080 ^
 -Posx 0 ^
 -Posy 0 ^
-"C:\Game\Game.exe" -window
+"Game.exe" -window

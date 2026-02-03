@@ -16,13 +16,6 @@ And modified by @SAM1430B from splitscreen.me .
 
 #include "InjectionInfo.h"
 
-// Helper function to convert a string to lowercase
-std::wstring to_lower(const std::wstring& str) {
-    std::wstring lower_str = str;
-    std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(), ::towlower);
-    return lower_str;
-}
-
 // Command-line usage information
 void print_usage() {
     std::wcout << L"Usage: WinSplitPlus.exe [options] C:\\path\\to\\game.exe [game arguments]\n"
@@ -30,6 +23,7 @@ void print_usage() {
         << L"  -Player <Number>        Identifier.\n"
         << L"  -WinClass               Enable Window class hook.\n"
         << L"  -WinName                Enable Window Name hook.\n"
+        << L"  -FindWindow             Enable FindWindow hook.\n"
         << L"  -Mutex <Name>           Hook Mutex.\n"
         << L"  -Width <W> -Height <H>  Set Window Size.\n"
         << L"  -Posx <X> -Posy <Y>     Set Window Position.\n\n"
@@ -38,7 +32,50 @@ void print_usage() {
         << L"  -W                      Enable Unicode hooks (e.g. RegisterClassW).\n"
         << L"  -Std                    Enable Standard hooks (e.g. RegisterClass).\n"
         << L"  -Ex                     Enable Extended hooks (e.g. RegisterClassEx).\n\n"
+        << L"  -IgnoreWinClass <Name>  Ignore specific Class Name (partial match).\n"
+        << L"  -IgnoreWinName <Name>   Ignore specific Window Name (partial match).\n"
         << L"  (If no filters are provided, ALL are enabled by default.)\n\n";
+}
+
+bool InjectStandardDLL(HANDLE hProcess, const std::wstring& dllPath)
+{
+    HMODULE hKernel32 = GetModuleHandleW(L"Kernel32");
+    if (!hKernel32) return false;
+
+    LPVOID pLoadLibrary = (LPVOID)GetProcAddress(hKernel32, "LoadLibraryW");
+    if (!pLoadLibrary) return false;
+
+    size_t bytesNeeded = (dllPath.length() + 1) * sizeof(wchar_t);
+    LPVOID pRemoteString = VirtualAllocEx(hProcess, NULL, bytesNeeded, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!pRemoteString) return false;
+
+    if (!WriteProcessMemory(hProcess, pRemoteString, dllPath.c_str(), bytesNeeded, NULL))
+    {
+        VirtualFreeEx(hProcess, pRemoteString, 0, MEM_RELEASE);
+        return false;
+    }
+
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)pLoadLibrary, pRemoteString, 0, NULL);
+    if (!hThread)
+    {
+        VirtualFreeEx(hProcess, pRemoteString, 0, MEM_RELEASE);
+        return false;
+    }
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    CloseHandle(hThread);
+    VirtualFreeEx(hProcess, pRemoteString, 0, MEM_RELEASE);
+
+    std::wcout << L"Standard Injection: " << dllPath.substr(dllPath.find_last_of(L"\\/") + 1) << L" - OK" << std::endl;
+    return true;
+}
+
+// Helper function to convert a string to lowercase
+std::wstring to_lower(const std::wstring& str) {
+    std::wstring lower_str = str;
+    std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(), ::towlower);
+    return lower_str;
 }
 
 int wmain(int argc, wchar_t* argv[])
@@ -83,6 +120,9 @@ int wmain(int argc, wchar_t* argv[])
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
             changeWindowName = true;
         }
+        else if (lower_arg == L"-findwindow") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_FIND_WINDOW;
+        }
         else if (lower_arg == L"-mutex" && i + 1 < argc) {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_MUTEX;
             baseMutexName = argv[++i];
@@ -118,6 +158,14 @@ int wmain(int argc, wchar_t* argv[])
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_EXTENDED;
             hasVariantFilter = true;
         }
+        else if (lower_arg == L"-ignorewinclass" && i + 1 < argc) {
+            std::wstring val = argv[++i];
+            wcscpy_s(injectionInfo.customIgnoreClassName, IGNORE_MAX_LENGTH, val.c_str());
+        }
+        else if (lower_arg == L"-ignorewinname" && i + 1 < argc) {
+            std::wstring val = argv[++i];
+            wcscpy_s(injectionInfo.customIgnoreWindowName, IGNORE_MAX_LENGTH, val.c_str());
+        }
         else {
             if (gamePath.empty()) gamePath = original_arg;
             else {
@@ -133,7 +181,7 @@ int wmain(int argc, wchar_t* argv[])
         system("pause");
         return 1;
     }
-    
+
     // Construct final names based on Player number
     if (!hasCharsetFilter) {
         injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI | InjectionFlags::HOOK_UNICODE;
@@ -166,7 +214,7 @@ int wmain(int argc, wchar_t* argv[])
         wcscpy_s(injectionInfo.mutexNewName, MUTEX_NAME_MAX_LENGTH, finalMutexName.c_str());
     }
 
-    // Inject the DLL
+    // Prepare DLLs
     WCHAR exePath[MAX_PATH];
     GetModuleFileName(NULL, exePath, MAX_PATH);
     std::wstring exeDir = exePath;
@@ -174,8 +222,6 @@ int wmain(int argc, wchar_t* argv[])
     if (lastSlash != std::wstring::npos) {
         exeDir = exeDir.substr(0, lastSlash);
     }
-
-    std::vector<std::wstring> dllsToInject;
 
     std::wstring coreDllName;
 
@@ -189,19 +235,15 @@ int wmain(int argc, wchar_t* argv[])
     coreDllName = L"WinSplitPlusIJ32.dll";
 #endif
 
-    // Add the Core DLL to the top of the list
     std::wstring coreDllPath = exeDir + L"\\" + coreDllName;
-
-    if (GetFileAttributesW(coreDllPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        dllsToInject.push_back(coreDllPath);
-        std::wcout << L"Added Core DLL: " << coreDllName << std::endl;
-    }
-    else {
+    if (GetFileAttributesW(coreDllPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
         std::wcerr << L"CRITICAL ERROR: Core DLL not found at: " << coreDllPath << std::endl;
         Sleep(10000);
         return 1;
     }
 
+    // Plugin DLLs
+    std::vector<std::wstring> pluginDlls;
     std::wstring pluginsDir = exeDir + L"\\plugins\\";
     std::wstring searchPath = pluginsDir + L"*.dll";
     WIN32_FIND_DATA wfd;
@@ -209,17 +251,26 @@ int wmain(int argc, wchar_t* argv[])
 
     if (hFind != INVALID_HANDLE_VALUE) {
         do {
-            std::wstring dllName = wfd.cFileName;
-            dllsToInject.push_back(pluginsDir + dllName);
+            std::wstring filename = wfd.cFileName;
+            std::wstring lowerName = to_lower(filename);
+            if (lowerName.length() >= 4 &&
+                lowerName.substr(lowerName.length() - 4) == L".dll")
+            {
+                pluginDlls.push_back(pluginsDir + filename);
+            }
+            else
+            {
+                //std::wcout << L"Skipping invalid match: " << filename << std::endl;
+            }
+
         } while (FindNextFile(hFind, &wfd));
         FindClose(hFind);
     }
     else {
-        std::wcout << L"No plugins found in " << pluginsDir << L" (Only Core DLL will be injected)." << std::endl;
+        std::wcout << L"No plugins found in " << pluginsDir << std::endl;
     }
 
-
-    // Suspended state is needed for Window hooks
+    // Launch Process
     PROCESS_INFORMATION pi = {};
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
@@ -227,7 +278,6 @@ int wmain(int argc, wchar_t* argv[])
     std::wstring fullCommandLine = L"\"" + gamePath + L"\" " + gameArgs;
 
     std::wcout << L"Launching game suspended: " << gamePath << std::endl;
-    std::wcout << L"Injecting " << dllsToInject.size() << L" DLLs..." << std::endl;
 
     if (!CreateProcess(
         NULL,
@@ -242,39 +292,39 @@ int wmain(int argc, wchar_t* argv[])
         &pi // ProcessInfo
     )) {
         std::wcerr << L"Failed to create process: " << GetLastError() << std::endl;
-        std::wcerr << L"Command: " << fullCommandLine << std::endl;
         Sleep(7000);
         return 1;
     }
 
     DWORD processId = pi.dwProcessId;
-    bool allInjectionsSucceeded = true;
 
-    for (const auto& dllPath : dllsToInject) {
-        std::wcout << L"Injecting " << dllPath.substr(dllPath.find_last_of(L"\\/") + 1) << L"..." << std::endl;
 
-        NTSTATUS nt = RhInjectLibrary(
-            processId,
-            0,
-            EASYHOOK_INJECT_DEFAULT,
-            const_cast<wchar_t*>(dllPath.c_str()),
-            const_cast<wchar_t*>(dllPath.c_str()),
-            &injectionInfo,
-            sizeof(InjectionInfo)
-        );
+    std::wcout << L"Injecting Core DLL via EasyHook..." << std::endl;
+    NTSTATUS nt = RhInjectLibrary(
+        processId,
+        0,
+        EASYHOOK_INJECT_DEFAULT,
+#if defined(_WIN64)
+        NULL, const_cast<wchar_t*>(coreDllPath.c_str()),
+#else
+        const_cast<wchar_t*>(coreDllPath.c_str()), NULL,
+#endif
+        & injectionInfo, sizeof(InjectionInfo)
+    );
 
-        if (nt != 0) {
-            std::wcerr << L"Failed to inject DLL " << dllPath << L": " << RtlGetLastErrorString() << std::endl;
-            allInjectionsSucceeded = false;
+    if (nt != 0) {
+        std::wcerr << L"Failed to inject Core DLL: " << RtlGetLastErrorString() << std::endl;
+        std::wcerr << L"Terminating..." << std::endl;
+        TerminateProcess(pi.hProcess, 1);
+        return 1;
+    }
+
+    if (!pluginDlls.empty())
+    {
+        std::wcout << L"Injecting " << pluginDlls.size() << L" plugins via LoadLibrary..." << std::endl;
+        for (const auto& dllPath : pluginDlls) {
+            InjectStandardDLL(pi.hProcess, dllPath);
         }
-    }
-
-    if (!allInjectionsSucceeded) {
-        std::wcerr << L"Warning: One or more DLLs failed to inject." << std::endl;
-        Sleep(5000);
-    }
-    else {
-        std::wcout << L"All injections successful." << std::endl;
     }
 
     std::wcout << L"Resuming game process..." << std::endl;
@@ -283,7 +333,7 @@ int wmain(int argc, wchar_t* argv[])
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    std::wcout << L"Successfully launched and injected into process " << processId << L". The launcher will now exit." << std::endl;
+    std::wcout << L"Success. Launcher exiting." << std::endl;
 
     return 0;
 }

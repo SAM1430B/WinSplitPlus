@@ -8,11 +8,11 @@
 #define PROD_NAME "WinSplitPlusIJ (32-bit)"
 #endif
 
-#define VER_FILEVERSION             1,2,0,0
-#define VER_FILEVERSION_STR         "1.2.0.0\0"
+#define VER_FILEVERSION             1,3,0,0
+#define VER_FILEVERSION_STR         "1.3.0.0\0"
 
-#define VER_PRODUCTVERSION          1,2,0,0
-#define VER_PRODUCTVERSION_STR      "1.2.0.0\0"
+#define VER_PRODUCTVERSION          1,3,0,0
+#define VER_PRODUCTVERSION_STR      "1.3.0.0\0"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION     VER_FILEVERSION
@@ -36,7 +36,7 @@ VALUE "CompanyName", "https://github.com/SAM1430B/WinSplitPlus"
 VALUE "FileDescription", "Window Hooks to run multi instances"
 VALUE "FileVersion", VER_FILEVERSION_STR
 VALUE "InternalName", FILE_NAME
-VALUE "LegalCopyright", "Copyright (C) 2025"
+VALUE "LegalCopyright", "Copyright (C) 2026"
 VALUE "OriginalFilename", FILE_NAME
 VALUE "ProductName", PROD_NAME
 VALUE "ProductVersion", VER_PRODUCTVERSION_STR

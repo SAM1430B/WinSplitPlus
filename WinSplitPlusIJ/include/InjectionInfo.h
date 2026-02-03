@@ -7,13 +7,15 @@ enum class InjectionFlags : std::uint64_t
     HOOK_WND_PROC = (1 << 0),       // Enable Class Registration hooks
     HOOK_CREATE_WINDOW = (1 << 1),  // Enable CreateWindow hooks
     HOOK_SET_WINDOW_POS = (1 << 2), // Enable SetWindowPos hooks
-    HOOK_CREATE_MUTEX = (1 << 8),   // Enable Mutex hooks
 
     HOOK_ANSI = (1 << 3),           // Enable *A hooks
     HOOK_UNICODE = (1 << 4),        // Enable *W hooks
+    HOOK_EXTENDED = (1 << 5),       // Enable *Ex hooks
+    HOOK_STANDARD = (1 << 6),       // Enable Standard hooks
 
-    HOOK_EXTENDED = (1 << 5),       // Enable *Ex hooks (e.g. RegisterClassEx)
-    HOOK_STANDARD = (1 << 6),       // Enable Standard hooks (e.g. RegisterClass)
+    HOOK_FIND_WINDOW = (1 << 7),    // FindWindow hooks
+
+    HOOK_CREATE_MUTEX = (1 << 8),   // Enable Mutex hooks
 };
 
 // Operator overloads
@@ -25,19 +27,23 @@ inline InjectionFlags operator~(InjectionFlags a) { return static_cast<Injection
 const std::size_t CLASS_NAME_MAX_LENGTH = 256;
 const std::size_t WINDOW_NAME_MAX_LENGTH = 512;
 const std::size_t MUTEX_NAME_MAX_LENGTH = 260;
+const int IGNORE_MAX_LENGTH = 64;
 
 struct InjectionInfo
 {
     InjectionFlags injectionFlags = (InjectionFlags)0;
 
     wchar_t windowClassName[CLASS_NAME_MAX_LENGTH]{};
+    wchar_t windowName[WINDOW_NAME_MAX_LENGTH]{};
 
     std::uint32_t windowSizeX = 0;
     std::uint32_t windowSizeY = 0;
     std::uint32_t windowPosX = 0;
     std::uint32_t windowPosY = 0;
-
-    wchar_t windowName[WINDOW_NAME_MAX_LENGTH]{};
+    
     wchar_t mutexOriginalName[MUTEX_NAME_MAX_LENGTH]{};
     wchar_t mutexNewName[MUTEX_NAME_MAX_LENGTH]{};
+
+    wchar_t customIgnoreClassName[IGNORE_MAX_LENGTH] = { 0 };
+    wchar_t customIgnoreWindowName[IGNORE_MAX_LENGTH] = { 0 };
 };
