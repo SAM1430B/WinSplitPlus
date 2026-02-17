@@ -31,9 +31,9 @@ void print_usage() {
         << L"  -A                      Enable ANSI hooks (e.g. RegisterClassA).\n"
         << L"  -W                      Enable Unicode hooks (e.g. RegisterClassW).\n"
         << L"  -Std                    Enable Standard hooks (e.g. RegisterClass).\n"
-        << L"  -Ex                     Enable Extended hooks (e.g. RegisterClassEx).\n\n"
+        << L"  -Ex                     Enable Extended hooks (e.g. RegisterClassEx).\n"
         << L"  -IgnoreWinClass <Name>  Ignore specific Class Name (partial match).\n"
-        << L"  -IgnoreWinName <Name>   Ignore specific Window Name (partial match).\n"
+        << L"  -IgnoreWinName <Name>   Ignore specific Window Name (partial match).\n\n"
         << L"  (If no filters are provided, ALL are enabled by default.)\n\n";
 }
 
@@ -218,10 +218,7 @@ int wmain(int argc, wchar_t* argv[])
     WCHAR exePath[MAX_PATH];
     GetModuleFileName(NULL, exePath, MAX_PATH);
     std::wstring exeDir = exePath;
-    size_t lastSlash = exeDir.find_last_of(L"\\/");
-    if (lastSlash != std::wstring::npos) {
-        exeDir = exeDir.substr(0, lastSlash);
-    }
+    exeDir = exeDir.substr(0, exeDir.find_last_of(L"\\/"));
 
     std::wstring coreDllName;
 
@@ -244,8 +241,7 @@ int wmain(int argc, wchar_t* argv[])
 
     // Plugin DLLs
     std::vector<std::wstring> pluginDlls;
-    std::wstring pluginsDir = exeDir + L"\\plugins\\";
-    std::wstring searchPath = pluginsDir + L"*.dll";
+    std::wstring searchPath = exeDir + L"\\plugins\\*.dll";
     WIN32_FIND_DATA wfd;
     HANDLE hFind = FindFirstFile(searchPath.c_str(), &wfd);
 
@@ -253,87 +249,77 @@ int wmain(int argc, wchar_t* argv[])
         do {
             std::wstring filename = wfd.cFileName;
             std::wstring lowerName = to_lower(filename);
-            if (lowerName.length() >= 4 &&
-                lowerName.substr(lowerName.length() - 4) == L".dll")
-            {
-                pluginDlls.push_back(pluginsDir + filename);
-            }
-            else
-            {
-                //std::wcout << L"Skipping invalid match: " << filename << std::endl;
-            }
-
+            if (lowerName.length() >= 4 && lowerName.substr(lowerName.length() - 4) == L".dll")
+                pluginDlls.push_back(exeDir + L"\\plugins\\" + filename);
         } while (FindNextFile(hFind, &wfd));
         FindClose(hFind);
-    }
-    else {
-        std::wcout << L"No plugins found in " << pluginsDir << std::endl;
     }
 
     // Launch Process
     PROCESS_INFORMATION pi = {};
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
-
     std::wstring fullCommandLine = L"\"" + gamePath + L"\" " + gameArgs;
 
     std::wcout << L"Launching game suspended: " << gamePath << std::endl;
-
-    if (!CreateProcess(
-        NULL,
-        const_cast<wchar_t*>(fullCommandLine.c_str()), // Command line
-        NULL,
-        NULL,
-        FALSE,
-        CREATE_SUSPENDED,
-        NULL,
-        NULL,
-        &si, // StartupInfo
-        &pi // ProcessInfo
-    )) {
-        std::wcerr << L"Failed to create process: " << GetLastError() << std::endl;
-        Sleep(7000);
+    if (!CreateProcess(NULL, const_cast<wchar_t*>(fullCommandLine.c_str()), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
+        std::wcerr << L"Failed to create process." << std::endl;
         return 1;
     }
 
-    DWORD processId = pi.dwProcessId;
+    std::wcout << L"Resuming process..." << std::endl;
+    ResumeThread(pi.hThread);
 
+    std::wcout << L"Attempting to catch process..." << std::endl;
 
-    std::wcout << L"Injecting Core DLL via EasyHook..." << std::endl;
-    NTSTATUS nt = RhInjectLibrary(
-        processId,
-        0,
-        EASYHOOK_INJECT_DEFAULT,
+    NTSTATUS nt = -1;
+    int attempts = 0;
+    const int MAX_ATTEMPTS = 50;
+
+    while (attempts < MAX_ATTEMPTS) {
+        nt = RhInjectLibrary(
+            pi.dwProcessId,
+            0,
+            EASYHOOK_INJECT_DEFAULT,
 #if defined(_WIN64)
-        NULL, const_cast<wchar_t*>(coreDllPath.c_str()),
+            NULL, const_cast<wchar_t*>(coreDllPath.c_str()),
 #else
-        const_cast<wchar_t*>(coreDllPath.c_str()), NULL,
+            const_cast<wchar_t*>(coreDllPath.c_str()), NULL,
 #endif
-        & injectionInfo, sizeof(InjectionInfo)
-    );
+            & injectionInfo, sizeof(InjectionInfo)
+        );
 
-    if (nt != 0) {
-        std::wcerr << L"Failed to inject Core DLL: " << RtlGetLastErrorString() << std::endl;
-        std::wcerr << L"Terminating..." << std::endl;
-        TerminateProcess(pi.hProcess, 1);
-        return 1;
-    }
-
-    if (!pluginDlls.empty())
-    {
-        std::wcout << L"Injecting " << pluginDlls.size() << L" plugins via LoadLibrary..." << std::endl;
-        for (const auto& dllPath : pluginDlls) {
-            InjectStandardDLL(pi.hProcess, dllPath);
+        if (nt == 0) {
+            std::wcout << L"Injection Successful on attempt " << (attempts + 1) << std::endl;
+            break;
+        }
+        else {
+            attempts++;
+            Sleep(10);
         }
     }
 
-    std::wcout << L"Resuming game process..." << std::endl;
-    ResumeThread(pi.hThread);
+    if (nt != 0) {
+        std::wcerr << L"CRITICAL FAILURE: Could not inject after " << MAX_ATTEMPTS << " attempts." << std::endl;
+        std::wcerr << L"Last Error: " << RtlGetLastErrorString() << std::endl;
+        // TerminateProcess(pi.hProcess, 1);
+        return 1;
+    }
+
+    std::wcout << L"Waiting for hooks to settle..." << std::endl;
+    Sleep(2000);
+
+    if (!pluginDlls.empty()) {
+        std::wcout << L"Injecting plugins..." << std::endl;
+        for (const auto& dllPath : pluginDlls) {
+            InjectStandardDLL(pi.hProcess, dllPath);
+            Sleep(200);
+        }
+    }
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    std::wcout << L"Success. Launcher exiting." << std::endl;
-
+    std::wcout << L"Success." << std::endl;
     return 0;
 }

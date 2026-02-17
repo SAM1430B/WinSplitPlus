@@ -71,15 +71,22 @@ bool IgnoreClassA(LPCSTR lpClassName)
     // Internal helpers
     if (strstr(lpClassName, "Overlay") != NULL) return true;
     if (strstr(lpClassName, "MSXML") != NULL) return true;
-    if (strstr(lpClassName, "DirectInput") != NULL) return true;
+    if (strstr(lpClassName, "DIEmWin") != NULL) return true;
     if (strstr(lpClassName, "DirectSound") != NULL) return true;
     if (strstr(lpClassName, "Direct3D") != NULL) return true;
     if (strstr(lpClassName, "DirectDraw") != NULL) return true;
+	if (strstr(lpClassName, "RawInput") != NULL) return true;
+
+    // SDL
+    if (strstr(lpClassName, "SDL_app") != NULL) return true;
+	if (strstr(lpClassName, "SDL_HIDAPI_DEVICE_DETECTION") != NULL) return true;
+	if (strstr(lpClassName, "SDLHelperWindowInputCatcher") != NULL) return true;
+	if (strstr(lpClassName, "Message") != NULL) return true;
 
     // System
     if (strstr(lpClassName, "IME") != NULL) return true;
     if (strstr(lpClassName, "MSCTF") != NULL) return true;
-
+    if (strstr(lpClassName, "MSCTFIME UI") != NULL) return true;
     return false;
 }
 
@@ -124,14 +131,22 @@ bool IgnoreClassW(LPCWSTR lpClassName)
     // Internal helpers
     if (wcsstr(lpClassName, L"Overlay") != NULL) return true;
 	if (wcsstr(lpClassName, L"MSXML") != NULL) return true;
-	if (wcsstr(lpClassName, L"DirectInput") != NULL) return true;
+	if (wcsstr(lpClassName, L"DIEmWin") != NULL) return true;
 	if (wcsstr(lpClassName, L"DirectSound") != NULL) return true;
 	if (wcsstr(lpClassName, L"Direct3D") != NULL) return true;
 	if (wcsstr(lpClassName, L"DirectDraw") != NULL) return true;
+    if (wcsstr(lpClassName, L"RawInput") != NULL) return true;
+
+	// SDL
+	if (wcsstr(lpClassName, L"SDL_app") != NULL) return true;
+    if (wcsstr(lpClassName, L"SDL_HIDAPI_DEVICE_DETECTION") != NULL) return true; 
+	if (wcsstr(lpClassName, L"SDLHelperWindowInputCatcher") != NULL) return true;
+	if (wcsstr(lpClassName, L"Message") != NULL) return true;
 
 	// System
 	if (wcsstr(lpClassName, L"IME") != NULL) return true;
 	if (wcsstr(lpClassName, L"MSCTF") != NULL) return true;
+	if (wcsstr(lpClassName, L"MSCTFIME UI") != NULL) return true;
 
     return false;
 }
