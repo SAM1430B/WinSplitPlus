@@ -86,6 +86,7 @@ int wmain(int argc, wchar_t* argv[])
     std::wstring baseMutexName;
     int playerNumber = 1;
     bool changeWindowName = false;
+    bool dontSuspendProcess = false;
 
     bool hasCharsetFilter = false; // -A or -W?
     bool hasVariantFilter = false; // -Std or -Ex?
@@ -112,6 +113,9 @@ int wmain(int argc, wchar_t* argv[])
                 Sleep(5000);
                 return 1;
             }
+        }
+        else if (lower_arg == L"-dontsuspend") {
+            dontSuspendProcess = true;
         }
         else if (lower_arg == L"-winclass") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_WND_PROC | InjectionFlags::HOOK_CREATE_WINDOW;
@@ -267,17 +271,51 @@ int wmain(int argc, wchar_t* argv[])
         return 1;
     }
 
-    std::wcout << L"Resuming process..." << std::endl;
-    ResumeThread(pi.hThread);
+    if (dontSuspendProcess)
+    {
+        std::wcout << L"Resuming process..." << std::endl;
+        ResumeThread(pi.hThread);
 
-    std::wcout << L"Attempting to catch process..." << std::endl;
+        std::wcout << L"Attempting to catch process..." << std::endl;
 
-    NTSTATUS nt = -1;
-    int attempts = 0;
-    const int MAX_ATTEMPTS = 50;
+        NTSTATUS nt = -1;
+        int attempts = 0;
+        const int MAX_ATTEMPTS = 1;
 
-    while (attempts < MAX_ATTEMPTS) {
-        nt = RhInjectLibrary(
+        while (attempts < MAX_ATTEMPTS) {
+            nt = RhInjectLibrary(
+                pi.dwProcessId,
+                0,
+                EASYHOOK_INJECT_DEFAULT,
+#if defined(_WIN64)
+                NULL, const_cast<wchar_t*>(coreDllPath.c_str()),
+#else
+                const_cast<wchar_t*>(coreDllPath.c_str()), NULL,
+#endif
+                & injectionInfo, sizeof(InjectionInfo)
+            );
+
+            if (nt == 0) {
+                std::wcout << L"Injection Successful on attempt " << (attempts + 1) << std::endl;
+                break;
+            }
+            else {
+                attempts++;
+                Sleep(10);
+            }
+        }
+
+        if (nt != 0) {
+            std::wcerr << L"CRITICAL FAILURE: Could not inject after " << MAX_ATTEMPTS << " attempts." << std::endl;
+            std::wcerr << L"Last Error: " << RtlGetLastErrorString() << std::endl;
+            // TerminateProcess(pi.hProcess, 1);
+            return 1;
+        }
+    }
+	else  // If (!dontSuspendProcess)
+    {
+
+        NTSTATUS nt = RhInjectLibrary(
             pi.dwProcessId,
             0,
             EASYHOOK_INJECT_DEFAULT,
@@ -289,21 +327,15 @@ int wmain(int argc, wchar_t* argv[])
             & injectionInfo, sizeof(InjectionInfo)
         );
 
-        if (nt == 0) {
-            std::wcout << L"Injection Successful on attempt " << (attempts + 1) << std::endl;
-            break;
+        if (nt != 0) {
+            std::wcerr << L"CRITICAL FAILURE: Suspended Injection failed." << std::endl;
+            std::wcerr << L"Error: " << RtlGetLastErrorString() << std::endl;
+            TerminateProcess(pi.hProcess, 1);
+            return 1;
         }
-        else {
-            attempts++;
-            Sleep(10);
-        }
-    }
 
-    if (nt != 0) {
-        std::wcerr << L"CRITICAL FAILURE: Could not inject after " << MAX_ATTEMPTS << " attempts." << std::endl;
-        std::wcerr << L"Last Error: " << RtlGetLastErrorString() << std::endl;
-        // TerminateProcess(pi.hProcess, 1);
-        return 1;
+        std::wcout << L"Resuming process..." << std::endl;
+        ResumeThread(pi.hThread);
     }
 
     std::wcout << L"Waiting for hooks to settle..." << std::endl;
