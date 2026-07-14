@@ -419,7 +419,31 @@ BOOL WINAPI SetWindowPosHook(
     _In_     UINT uFlags
 )
 {
-    return SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags | SWP_NOMOVE | SWP_NOSIZE);
+    int finalX = (gInjectionInfo.windowPosX != 0) ? gInjectionInfo.windowPosX : X;
+    int finalY = (gInjectionInfo.windowPosY != 0) ? gInjectionInfo.windowPosY : Y;
+    int finalCx = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : cx;
+    int finalCy = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : cy;
+
+    if (gInjectionInfo.windowPosX != 0 || gInjectionInfo.windowPosY != 0) {
+        uFlags &= ~SWP_NOMOVE;
+    }
+
+    if (gInjectionInfo.windowSizeX != 0 || gInjectionInfo.windowSizeY != 0) {
+        uFlags &= ~SWP_NOSIZE;
+    }
+
+    return SetWindowPos(hWnd, hWndInsertAfter, finalX, finalY, finalCx, finalCy, uFlags);
+}
+
+BOOL WINAPI MoveWindowHook(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOOL bRepaint)
+{
+    int finalX = (gInjectionInfo.windowPosX != 0) ? gInjectionInfo.windowPosX : X;
+    int finalY = (gInjectionInfo.windowPosY != 0) ? gInjectionInfo.windowPosY : Y;
+    int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
+    int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
+
+    return MoveWindow(hWnd, finalX, finalY, finalWidth, finalHeight, bRepaint);
+}
 }
 
 // MUTEX HOOKS
@@ -502,7 +526,7 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
     if (inRemoteInfo->UserDataSize != sizeof(InjectionInfo)) return;
     memcpy_s(&gInjectionInfo, sizeof(InjectionInfo), inRemoteInfo->UserData, inRemoteInfo->UserDataSize);
 
-    std::wcout << "WinSplitPlusIJ Entered\n";
+    std::wcout << L"WinSplitPlusIJ Entered\n";
 
     bool doAnsi = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_ANSI) == InjectionFlags::HOOK_ANSI;
     bool doUnicode = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_UNICODE) == InjectionFlags::HOOK_UNICODE;
@@ -513,27 +537,40 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
     // Install FindWindow Hooks
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_FIND_WINDOW) == InjectionFlags::HOOK_FIND_WINDOW)
     {
-        if (doAnsi) hookFunction("user32", "FindWindowA", FindWindowAHook);
-        if (doUnicode) hookFunction("user32", "FindWindowW", FindWindowWHook);
+        if (doAnsi) {
+            if (doStd) hookFunction("user32", "FindWindowA", FindWindowAHook);
+            if (doEx)  hookFunction("user32", "FindWindowExA", FindWindowExAHook);
+        }
+        if (doUnicode) {
+            if (doStd) hookFunction("user32", "FindWindowW", FindWindowWHook);
+            if (doEx)  hookFunction("user32", "FindWindowExW", FindWindowExWHook);
+        }
     }
 
     // Install RegisterClass Hooks
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC)
     {
-        // ANSI
-        if (doAnsi && doStd) hookFunction("user32", "RegisterClassA", RegisterClassAHook);
-        if (doAnsi && doEx)  hookFunction("user32", "RegisterClassExA", RegisterClassExAHook);
-
-        // Unicode
-        if (doUnicode && doStd) hookFunction("user32", "RegisterClassW", RegisterClassWHook);
-        if (doUnicode && doEx)  hookFunction("user32", "RegisterClassExW", RegisterClassExWHook);
+        if (doAnsi) {
+            if (doStd) hookFunction("user32", "RegisterClassA", RegisterClassAHook);
+            if (doEx)  hookFunction("user32", "RegisterClassExA", RegisterClassExAHook);
+        }
+        if (doUnicode) {
+            if (doStd) hookFunction("user32", "RegisterClassW", RegisterClassWHook);
+            if (doEx)  hookFunction("user32", "RegisterClassExW", RegisterClassExWHook);
+        }
     }
 
 	// Install CreateWindow Hooks
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_WINDOW) == InjectionFlags::HOOK_CREATE_WINDOW)
     {
-        if (doAnsi) hookFunction("user32", "CreateWindowExA", CreateWindowExAHook);
-        if (doUnicode) hookFunction("user32", "CreateWindowExW", CreateWindowExWHook);
+        if (doAnsi) {
+            if (doStd) hookFunction("user32", "CreateWindowA", CreateWindowAHook);
+            if (doEx)  hookFunction("user32", "CreateWindowExA", CreateWindowExAHook);
+        }
+        if (doUnicode) {
+            if (doStd) hookFunction("user32", "CreateWindowW", CreateWindowWHook);
+            if (doEx)  hookFunction("user32", "CreateWindowExW", CreateWindowExWHook);
+        }
     }
 
 	// Install SetWindowPos Hook
@@ -542,10 +579,16 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
         hookFunction("user32", "SetWindowPos", SetWindowPosHook);
     }
 
+    // Install MoveWindow Hook
+    if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_MOVE_WINDOW) == InjectionFlags::HOOK_MOVE_WINDOW)
+    {
+        hookFunction("user32", "MoveWindow", MoveWindowHook);
+    }
+
 	// Install CreateMutex Hooks
     if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_CREATE_MUTEX) == InjectionFlags::HOOK_CREATE_MUTEX)
     {
-        if (doAnsi) hookFunction("Kernel32", "CreateMutexA", CreateMutexAHook);
+        if (doAnsi)    hookFunction("Kernel32", "CreateMutexA", CreateMutexAHook);
         if (doUnicode) hookFunction("Kernel32", "CreateMutexW", CreateMutexWHook);
     }
 

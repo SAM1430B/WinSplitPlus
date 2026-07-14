@@ -7,13 +7,19 @@ enum class InjectionFlags : std::uint64_t
     HOOK_WND_PROC = (1 << 0),       // Enable Class Registration hooks
     HOOK_CREATE_WINDOW = (1 << 1),  // Enable CreateWindow hooks
     HOOK_SET_WINDOW_POS = (1 << 2), // Enable SetWindowPos hooks
+    HOOK_MOVE_WINDOW = (1 << 3),    // Enable MoveWindow hooks
 
-    HOOK_ANSI = (1 << 3),           // Enable *A hooks
-    HOOK_UNICODE = (1 << 4),        // Enable *W hooks
-    HOOK_EXTENDED = (1 << 5),       // Enable *Ex hooks
-    HOOK_STANDARD = (1 << 6),       // Enable Standard hooks
+    HOOK_ANSI = (1 << 4),           // Enable *A hooks
+    HOOK_UNICODE = (1 << 5),        // Enable *W hooks
+    HOOK_EXTENDED = (1 << 6),       // Enable *Ex hooks
+    HOOK_STANDARD = (1 << 7),       // Enable Standard hooks
 
-    HOOK_FIND_WINDOW = (1 << 7),    // FindWindow hooks
+    HOOK_FIND_WINDOW = (1 << 8),    // FindWindow hooks
+
+	// TODO: Add support for these hooks
+    HOOK_CREATE_MUTEX = (1 << 9),   // Enable Mutex hooks
+    //HOOK_CREATE_EVENT = (1 << 10),   // Enable Event hooks
+    //HOOK_CREATE_SEMAPHORE = (1 << 11), // Enable Semaphore hooks
 
     HOOK_CREATE_MUTEX = (1 << 8),   // Enable Mutex hooks
 };

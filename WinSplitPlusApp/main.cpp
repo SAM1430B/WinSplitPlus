@@ -146,6 +146,9 @@ int wmain(int argc, wchar_t* argv[])
         else if (lower_arg == L"-setwindowpos") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_SET_WINDOW_POS;
         }
+        else if (lower_arg == L"-movewindow") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_MOVE_WINDOW;
+        }
         else if (lower_arg == L"-a") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI;
             hasCharsetFilter = true;
