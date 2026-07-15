@@ -196,6 +196,7 @@
   <ItemGroup>
     <ClInclude Include="include\InjectionInfo.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="WindowFilters.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Version.rc" />

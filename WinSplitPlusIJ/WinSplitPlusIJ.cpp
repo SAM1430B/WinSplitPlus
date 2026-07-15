@@ -9,14 +9,11 @@ And modified by @SAM1430B from splitscreen.me .
 #include <WinUser.h>
 #include <easyhook.h>
 
-#include <fstream>
 #include <string>
-#include <mutex>
-#include <cstdlib>
 #include <iostream>
-#include <assert.h>
 
 #include "include\InjectionInfo.h" 
+#include "WindowFilters.h"
 
 #if defined(_WIN64)
 #pragma comment(linker, "/EXPORT:NativeInjectionEntryPoint=NativeInjectionEntryPoint")
@@ -30,181 +27,11 @@ HMODULE g_hGameModule = NULL;
 char g_SpoofedClassNameA[CLASS_NAME_MAX_LENGTH] = { 0 };
 wchar_t g_SpoofedClassNameW[CLASS_NAME_MAX_LENGTH] = { 0 };
 
-// FILTERS FOR IGNORING WINDOWS AND CLASSES
-bool IgnoreClassA(LPCSTR lpClassName)
-{
-    if (lpClassName == NULL || IS_INTRESOURCE(lpClassName)) return false;
-
-    // Custom ignore
-    if (gInjectionInfo.customIgnoreClassName[0] != L'\0')
-    {
-        char ansiCustom[IGNORE_MAX_LENGTH];
-        wcstombs_s(nullptr, ansiCustom, IGNORE_MAX_LENGTH, gInjectionInfo.customIgnoreClassName, _TRUNCATE);
-        if (strstr(lpClassName, ansiCustom) != NULL) return true;
-    }
-
-    if (strstr(lpClassName, "GtoMnK") != NULL) return true;
-    if (strstr(lpClassName, "GtoMnK_Pointer_Window") != NULL) return true;
-    if (strstr(lpClassName, "GtoMnK_RawInput_Window") != NULL) return true;
-    if (strstr(lpClassName, "GtoMnK_Overlay_Window") != NULL) return true;
-    
-    if (strstr(lpClassName, "ProtoInputPointer") != NULL) return true;
-    if (strstr(lpClassName, "PROTORAWINPUT") != NULL) return true;
-    if (strstr(lpClassName, "PROTOINPUTUI") != NULL) return true;
-    if (strstr(lpClassName, "PROTOHOSTRAWINPUT") != NULL) return true;
-    if (strstr(lpClassName, "PROTOHOSTUI") != NULL) return true;
-	
-	if (strstr(lpClassName, "dummy") != NULL) return true;
-	if (strstr(lpClassName, "SK_BackgroundWindow") != NULL) return true;
-	if (strstr(lpClassName, "SK_HID_Listener_pid") != NULL) return true;
-	if (strstr(lpClassName, "Kiero") != NULL) return true;
-	if (strstr(lpClassName, "RTSSWndClass") != NULL) return true;
-	if (strstr(lpClassName, "Special K Dummy Window Class") != NULL) return true;
-	if (strstr(lpClassName, "EOSOVHDummyWindowClass") != NULL) return true;
-	if (strstr(lpClassName, "CurseOverlayTemporaryDirect3D11Window") != NULL) return true;
-	if (strstr(lpClassName, "TestDX11WindowClass") != NULL) return true;
-	if (strstr(lpClassName, "static") != NULL) return true;
-	if (strstr(lpClassName, "SKIV_NotificationIcon") != NULL) return true;
-	if (strstr(lpClassName, "InvisibleWindowClassNvPresent") != NULL) return true;
-	if (strstr(lpClassName, "TempDirect3D11OverlayWindow") != NULL) return true;
-	if (strstr(lpClassName, "TempWindowClass") != NULL) return true;
-	if (strstr(lpClassName, "DDrawCompatMessageWindow") != NULL) return true;
-    if (strstr(lpClassName, "DDrawCompatPresentationWindow") != NULL) return true;
-
-    // Internal helpers
-    if (strstr(lpClassName, "Overlay") != NULL) return true;
-    if (strstr(lpClassName, "MSXML") != NULL) return true;
-    if (strstr(lpClassName, "DIEmWin") != NULL) return true;
-    if (strstr(lpClassName, "DirectSound") != NULL) return true;
-    if (strstr(lpClassName, "Direct3D") != NULL) return true;
-    if (strstr(lpClassName, "DirectDraw") != NULL) return true;
-	if (strstr(lpClassName, "RawInput") != NULL) return true;
-
-    // SDL
-    if (strstr(lpClassName, "SDL_app") != NULL) return true;
-	if (strstr(lpClassName, "SDL_HIDAPI_DEVICE_DETECTION") != NULL) return true;
-	if (strstr(lpClassName, "SDLHelperWindowInputCatcher") != NULL) return true;
-	if (strstr(lpClassName, "Message") != NULL) return true;
-
-    // System
-    if (strstr(lpClassName, "IME") != NULL) return true;
-    if (strstr(lpClassName, "MSCTF") != NULL) return true;
-    if (strstr(lpClassName, "MSCTFIME UI") != NULL) return true;
-    return false;
-}
-
-bool IgnoreClassW(LPCWSTR lpClassName)
-{
-    if (lpClassName == NULL || IS_INTRESOURCE(lpClassName)) return false;
-
-    // Custom ignore
-    if (gInjectionInfo.customIgnoreClassName[0] != L'\0')
-    {
-        if (wcsstr(lpClassName, gInjectionInfo.customIgnoreClassName) != NULL) return true;
-    }
-
-    if (wcsstr(lpClassName, L"GtoMnK") != NULL) return true;
-	if (wcsstr(lpClassName, L"GtoMnK_Pointer_Window") != NULL) return true;
-	if (wcsstr(lpClassName, L"GtoMnK_RawInput_Window") != NULL) return true;
-	if (wcsstr(lpClassName, L"GtoMnK_Overlay_Window") != NULL) return true;
-
-    if (wcsstr(lpClassName, L"ProtoInputPointer") != NULL) return true;
-    if (wcsstr(lpClassName, L"PROTORAWINPUT") != NULL) return true;
-	if (wcsstr(lpClassName, L"PROTOINPUTUI") != NULL) return true;
-	if (wcsstr(lpClassName, L"PROTOHOSTRAWINPUT") != NULL) return true;
-	if (wcsstr(lpClassName, L"PROTOHOSTUI") != NULL) return true;
-	
-    if (wcsstr(lpClassName, L"dummy") != NULL) return true;
-	if (wcsstr(lpClassName, L"SK_BackgroundWindow") != NULL) return true;
-	if (wcsstr(lpClassName, L"SK_HID_Listener_pid") != NULL) return true;
-	if (wcsstr(lpClassName, L"Kiero") != NULL) return true;
-	if (wcsstr(lpClassName, L"RTSSWndClass") != NULL) return true;
-	if (wcsstr(lpClassName, L"Special K Dummy Window Class") != NULL) return true;
-	if (wcsstr(lpClassName, L"EOSOVHDummyWindowClass") != NULL) return true;
-	if (wcsstr(lpClassName, L"CurseOverlayTemporaryDirect3D11Window") != NULL) return true;
-	if (wcsstr(lpClassName, L"TestDX11WindowClass") != NULL) return true;
-	if (wcsstr(lpClassName, L"static") != NULL) return true;
-	if (wcsstr(lpClassName, L"SKIV_NotificationIcon") != NULL) return true;
-	if (wcsstr(lpClassName, L"InvisibleWindowClassNvPresent") != NULL) return true;
-	if (wcsstr(lpClassName, L"TempDirect3D11OverlayWindow") != NULL) return true;
-	if (wcsstr(lpClassName, L"TempWindowClass") != NULL) return true;
-	if (wcsstr(lpClassName, L"DDrawCompatMessageWindow") != NULL) return true;
-	if (wcsstr(lpClassName, L"DDrawCompatPresentationWindow") != NULL) return true;
-
-    // Internal helpers
-    if (wcsstr(lpClassName, L"Overlay") != NULL) return true;
-	if (wcsstr(lpClassName, L"MSXML") != NULL) return true;
-	if (wcsstr(lpClassName, L"DIEmWin") != NULL) return true;
-	if (wcsstr(lpClassName, L"DirectSound") != NULL) return true;
-	if (wcsstr(lpClassName, L"Direct3D") != NULL) return true;
-	if (wcsstr(lpClassName, L"DirectDraw") != NULL) return true;
-    if (wcsstr(lpClassName, L"RawInput") != NULL) return true;
-
-	// SDL
-	if (wcsstr(lpClassName, L"SDL_app") != NULL) return true;
-    if (wcsstr(lpClassName, L"SDL_HIDAPI_DEVICE_DETECTION") != NULL) return true; 
-	if (wcsstr(lpClassName, L"SDLHelperWindowInputCatcher") != NULL) return true;
-	if (wcsstr(lpClassName, L"Message") != NULL) return true;
-
-	// System
-	if (wcsstr(lpClassName, L"IME") != NULL) return true;
-	if (wcsstr(lpClassName, L"MSCTF") != NULL) return true;
-	if (wcsstr(lpClassName, L"MSCTFIME UI") != NULL) return true;
-
-    return false;
-}
-
-bool IgnoreWindow(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName)
-{
-    // Ignore Tool Windows
-    if (dwExStyle & WS_EX_TOOLWINDOW) return true;
-
-    // Custom Window Name
-    if (lpWindowName != NULL && gInjectionInfo.customIgnoreWindowName[0] != L'\0')
-    {
-        char ansiCustom[IGNORE_MAX_LENGTH];
-        wcstombs_s(nullptr, ansiCustom, IGNORE_MAX_LENGTH, gInjectionInfo.customIgnoreWindowName, _TRUNCATE);
-        if (strstr(lpWindowName, ansiCustom) != NULL) return true;
-    }
-
-    // System
-    if (!IS_INTRESOURCE(lpClassName) && lpClassName != NULL)
-    {
-        if (strcmp(lpClassName, "IME") == 0) return true;
-        if (strcmp(lpClassName, "Default IME") == 0) return true;
-        if (strstr(lpClassName, "MSCTFIME") != NULL) return true;
-        if (IgnoreClassA(lpClassName)) return true;
-    }
-    return false;
-}
-
-bool IgnoreWindowW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName)
-{
-    // Ignore Tool Windows
-    if (dwExStyle & WS_EX_TOOLWINDOW) return true;
-
-    // Custom Window Name
-    if (lpWindowName != NULL && gInjectionInfo.customIgnoreWindowName[0] != L'\0')
-    {
-        if (wcsstr(lpWindowName, gInjectionInfo.customIgnoreWindowName) != NULL) return true;
-    }
-
-    // System
-    if (!IS_INTRESOURCE(lpClassName) && lpClassName != NULL)
-    {
-        if (wcscmp(lpClassName, L"IME") == 0) return true;
-        if (wcscmp(lpClassName, L"Default IME") == 0) return true;
-        if (wcsstr(lpClassName, L"MSCTFIME") != NULL) return true;
-        if (IgnoreClassW(lpClassName)) return true;
-    }
-    return false;
-}
-
 // WINDOW HOOKS
 ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
 {
-    // Ignore Class check
-    if (IgnoreClassA(lpWndClass->lpszClassName)) return RegisterClassA(lpWndClass);
+    // Filter
+    if (IsCallerIgnoredModule() || IgnoreClassA(lpWndClass->lpszClassName)) return RegisterClassA(lpWndClass);
 
     WNDCLASSA wndClass;
     memcpy_s(&wndClass, sizeof(WNDCLASSA), lpWndClass, sizeof(WNDCLASSA));
@@ -228,8 +55,8 @@ ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
 
 ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
 {
-    // Ignore Class check
-    if (IgnoreClassA(lpwcx->lpszClassName)) return RegisterClassExA(lpwcx);
+    // Filter
+	if (IsCallerIgnoredModule() || IgnoreClassA(lpwcx->lpszClassName)) return RegisterClassExA(lpwcx);
 
     WNDCLASSEXA wndClassEx;
     memcpy_s(&wndClassEx, sizeof(WNDCLASSEXA), lpwcx, sizeof(WNDCLASSEXA));
@@ -253,8 +80,8 @@ ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
 
 ATOM WINAPI RegisterClassWHook(_In_ const WNDCLASSW* lpWndClass)
 {
-    // Ignore Class check
-    if (IgnoreClassW(lpWndClass->lpszClassName)) return RegisterClassW(lpWndClass);
+    // Filter
+	if (IsCallerIgnoredModule() || IgnoreClassW(lpWndClass->lpszClassName)) return RegisterClassW(lpWndClass);
 
     WNDCLASSW wndClass;
     memcpy_s(&wndClass, sizeof(WNDCLASSW), lpWndClass, sizeof(WNDCLASSW));
@@ -274,8 +101,8 @@ ATOM WINAPI RegisterClassWHook(_In_ const WNDCLASSW* lpWndClass)
 
 ATOM WINAPI RegisterClassExWHook(_In_ const WNDCLASSEXW* lpwcx)
 {
-    // Ignore Class check
-    if (IgnoreClassW(lpwcx->lpszClassName)) return RegisterClassExW(lpwcx);
+    // Filter
+	if (IsCallerIgnoredModule() || IgnoreClassW(lpwcx->lpszClassName)) return RegisterClassExW(lpwcx);
 
     WNDCLASSEXW wndClassEx;
     memcpy_s(&wndClassEx, sizeof(WNDCLASSEXW), lpwcx, sizeof(WNDCLASSEXW));
@@ -372,8 +199,8 @@ HWND WINAPI CreateWindowExAHook(
     _In_opt_ LPVOID    lpParam
 )
 {
-	// Ignore window check
-    if (IgnoreWindow(dwExStyle, lpClassName, lpWindowName))
+	// Filter
+    if (IsCallerIgnoredModule() || IgnoreClassA(lpClassName))
     {
         return CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
@@ -432,8 +259,8 @@ HWND WINAPI CreateWindowExWHook(
     _In_opt_ LPVOID    lpParam
 )
 {
-    // Ignore window check
-    if (IgnoreWindowW(dwExStyle, lpClassName, lpWindowName))
+    // Filter
+    if (IsCallerIgnoredModule() || IgnoreClassW(lpClassName))
     {
         return CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
@@ -531,6 +358,9 @@ BOOL WINAPI AdjustWindowRectExHook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWO
 
 int WINAPI GetSystemMetricsHook(int nIndex)
 {
+    // Filter
+    if (IsCallerIgnoredModule()) return GetSystemMetrics(nIndex);
+
     if (nIndex == SM_CXSCREEN && gInjectionInfo.windowSizeX != 0) return gInjectionInfo.windowSizeX;
     if (nIndex == SM_CYSCREEN && gInjectionInfo.windowSizeY != 0) return gInjectionInfo.windowSizeY;
     return GetSystemMetrics(nIndex);
@@ -543,7 +373,8 @@ LONG WINAPI ChangeDisplaySettingsExWHook(LPCWSTR lpszDeviceName, DEVMODEW* lpDev
 
 LONG WINAPI SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
 {
-    if (nIndex == GWL_STYLE) {
+    // Filter
+    if (nIndex == GWL_STYLE && !IsIgnoredHwnd(hWnd) && !IsCallerIgnoredModule()) {
         dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
         dwNewLong |= WS_POPUP;
     }
@@ -552,7 +383,8 @@ LONG WINAPI SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
 
 LONG WINAPI SetWindowLongWHook(HWND hWnd, int nIndex, LONG dwNewLong)
 {
-    if (nIndex == GWL_STYLE) {
+    // Filter
+    if (nIndex == GWL_STYLE && !IsIgnoredHwnd(hWnd) && !IsCallerIgnoredModule()) {
         dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
         dwNewLong |= WS_POPUP;
     }
@@ -562,6 +394,10 @@ LONG WINAPI SetWindowLongWHook(HWND hWnd, int nIndex, LONG dwNewLong)
 BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 {
     BOOL result = GetMonitorInfoA(hMonitor, lpmi);
+
+	// Filter
+    if (IsCallerIgnoredModule()) return result;
+
     if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
         lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
         lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
@@ -573,6 +409,10 @@ BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 {
     BOOL result = GetMonitorInfoW(hMonitor, lpmi);
+
+	// Filter
+	if (IsCallerIgnoredModule()) return result;
+
     if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
         lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
         lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
@@ -584,6 +424,10 @@ BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
 {
     BOOL result = SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
+
+	// Filter
+	if (IsCallerIgnoredModule()) return result;
+
     if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
         LPRECT rect = (LPRECT)pvParam;
         rect->right = rect->left + gInjectionInfo.windowSizeX;
@@ -595,6 +439,10 @@ BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam
 BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
 {
     BOOL result = SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
+
+	// Filter
+	if (IsCallerIgnoredModule()) return result;
+
     if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
         LPRECT rect = (LPRECT)pvParam;
         rect->right = rect->left + gInjectionInfo.windowSizeX;
@@ -606,6 +454,10 @@ BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam
 BOOL WINAPI EnumDisplaySettingsAHook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVMODEA* lpDevMode)
 {
     BOOL result = EnumDisplaySettingsA(lpszDeviceName, iModeNum, lpDevMode);
+
+	// Filter
+    if (IsCallerIgnoredModule()) return result;
+
     if (result && lpDevMode != NULL && gInjectionInfo.windowSizeX != 0) {
         if (lpDevMode->dmPelsWidth < (DWORD)gInjectionInfo.windowSizeX) lpDevMode->dmPelsWidth = gInjectionInfo.windowSizeX;
         if (lpDevMode->dmPelsHeight < (DWORD)gInjectionInfo.windowSizeY) lpDevMode->dmPelsHeight = gInjectionInfo.windowSizeY;
@@ -616,6 +468,10 @@ BOOL WINAPI EnumDisplaySettingsAHook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVM
 BOOL WINAPI EnumDisplaySettingsWHook(LPCWSTR lpszDeviceName, DWORD iModeNum, DEVMODEW* lpDevMode)
 {
     BOOL result = EnumDisplaySettingsW(lpszDeviceName, iModeNum, lpDevMode);
+
+	// Filter
+	if (IsCallerIgnoredModule()) return result;
+
     if (result && lpDevMode != NULL && gInjectionInfo.windowSizeX != 0) {
         if (lpDevMode->dmPelsWidth < (DWORD)gInjectionInfo.windowSizeX) lpDevMode->dmPelsWidth = gInjectionInfo.windowSizeX;
         if (lpDevMode->dmPelsHeight < (DWORD)gInjectionInfo.windowSizeY) lpDevMode->dmPelsHeight = gInjectionInfo.windowSizeY;
