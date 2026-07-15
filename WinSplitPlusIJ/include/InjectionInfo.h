@@ -21,7 +21,7 @@ enum class InjectionFlags : std::uint64_t
     //HOOK_CREATE_EVENT = (1 << 10),   // Enable Event hooks
     //HOOK_CREATE_SEMAPHORE = (1 << 11), // Enable Semaphore hooks
 
-    HOOK_CREATE_MUTEX = (1 << 8),   // Enable Mutex hooks
+    HOOK_FORCE_WINDOW = (1 << 12),   // Force window style, monitor size, and display settings
 };
 
 // Operator overloads

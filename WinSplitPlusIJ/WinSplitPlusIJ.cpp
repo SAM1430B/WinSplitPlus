@@ -27,6 +27,9 @@ And modified by @SAM1430B from splitscreen.me .
 InjectionInfo gInjectionInfo;
 HMODULE g_hGameModule = NULL;
 
+char g_SpoofedClassNameA[CLASS_NAME_MAX_LENGTH] = { 0 };
+wchar_t g_SpoofedClassNameW[CLASS_NAME_MAX_LENGTH] = { 0 };
+
 // FILTERS FOR IGNORING WINDOWS AND CLASSES
 bool IgnoreClassA(LPCSTR lpClassName)
 {
@@ -198,93 +201,95 @@ bool IgnoreWindowW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName)
 }
 
 // WINDOW HOOKS
-ATOM WINAPI RegisterClassAHook(
-    _In_ const WNDCLASSA* lpWndClass
-)
+ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
 {
     // Ignore Class check
-    if (IgnoreClassA(lpWndClass->lpszClassName))
-    {
-        return RegisterClassA(lpWndClass);
-    }
+    if (IgnoreClassA(lpWndClass->lpszClassName)) return RegisterClassA(lpWndClass);
 
     WNDCLASSA wndClass;
     memcpy_s(&wndClass, sizeof(WNDCLASSA), lpWndClass, sizeof(WNDCLASSA));
 
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpWndClass->lpszClassName != NULL && !IS_INTRESOURCE(lpWndClass->lpszClassName))
     {
+        if (g_SpoofedClassNameA[0] == '\0') {
+            strcpy_s(g_SpoofedClassNameA, CLASS_NAME_MAX_LENGTH, lpWndClass->lpszClassName);
+
         static char ansiName[CLASS_NAME_MAX_LENGTH];
         size_t convertedCount;
-        wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH);
+            wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         wndClass.lpszClassName = ansiName;
     }
-
+        else {
+            return RegisterClassA(lpWndClass);
+        }
+    }
     return RegisterClassA(&wndClass);
 }
 
-ATOM WINAPI RegisterClassExAHook(
-    _In_ const WNDCLASSEXA* lpwcx
-)
+ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
 {
     // Ignore Class check
-    if (IgnoreClassA(lpwcx->lpszClassName))
-    {
-        return RegisterClassExA(lpwcx);
-    }
+    if (IgnoreClassA(lpwcx->lpszClassName)) return RegisterClassExA(lpwcx);
 
     WNDCLASSEXA wndClassEx;
     memcpy_s(&wndClassEx, sizeof(WNDCLASSEXA), lpwcx, sizeof(WNDCLASSEXA));
 
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpwcx->lpszClassName != NULL && !IS_INTRESOURCE(lpwcx->lpszClassName))
     {
+        if (g_SpoofedClassNameA[0] == '\0') {
+            strcpy_s(g_SpoofedClassNameA, CLASS_NAME_MAX_LENGTH, lpwcx->lpszClassName);
+
         static char ansiName[CLASS_NAME_MAX_LENGTH];
         size_t convertedCount;
-        wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH);
+            wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         wndClassEx.lpszClassName = ansiName;
     }
-
+        else {
+            return RegisterClassExA(lpwcx);
+        }
+    }
     return RegisterClassExA(&wndClassEx);
 }
 
-ATOM WINAPI RegisterClassWHook(
-    _In_ const WNDCLASSW* lpWndClass
-)
+ATOM WINAPI RegisterClassWHook(_In_ const WNDCLASSW* lpWndClass)
 {
     // Ignore Class check
-    if (IgnoreClassW(lpWndClass->lpszClassName))
-    {
-        return RegisterClassW(lpWndClass);
-    }
+    if (IgnoreClassW(lpWndClass->lpszClassName)) return RegisterClassW(lpWndClass);
 
     WNDCLASSW wndClass;
     memcpy_s(&wndClass, sizeof(WNDCLASSW), lpWndClass, sizeof(WNDCLASSW));
 
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpWndClass->lpszClassName != NULL && !IS_INTRESOURCE(lpWndClass->lpszClassName))
     {
+        if (g_SpoofedClassNameW[0] == L'\0') {
+            wcscpy_s(g_SpoofedClassNameW, CLASS_NAME_MAX_LENGTH, lpWndClass->lpszClassName);
         wndClass.lpszClassName = gInjectionInfo.windowClassName;
     }
-
+        else {
+            return RegisterClassW(lpWndClass);
+        }
+    }
     return RegisterClassW(&wndClass);
 }
 
-ATOM WINAPI RegisterClassExWHook(
-    _In_ const WNDCLASSEXW* lpwcx
-)
+ATOM WINAPI RegisterClassExWHook(_In_ const WNDCLASSEXW* lpwcx)
 {
     // Ignore Class check
-    if (IgnoreClassW(lpwcx->lpszClassName))
-    {
-        return RegisterClassExW(lpwcx);
-    }
+    if (IgnoreClassW(lpwcx->lpszClassName)) return RegisterClassExW(lpwcx);
 
     WNDCLASSEXW wndClassEx;
     memcpy_s(&wndClassEx, sizeof(WNDCLASSEXW), lpwcx, sizeof(WNDCLASSEXW));
 
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpwcx->lpszClassName != NULL && !IS_INTRESOURCE(lpwcx->lpszClassName))
     {
+        if (g_SpoofedClassNameW[0] == L'\0') {
+            wcscpy_s(g_SpoofedClassNameW, CLASS_NAME_MAX_LENGTH, lpwcx->lpszClassName);
         wndClassEx.lpszClassName = gInjectionInfo.windowClassName;
     }
-
+        else {
+            return RegisterClassExW(lpwcx);
+        }
+    }
     return RegisterClassExW(&wndClassEx);
 }
 
@@ -321,6 +326,37 @@ HWND WINAPI FindWindowWHook(LPCWSTR lpClassName, LPCWSTR lpWindowName)
     return FindWindowW(lpClassName, lpWindowName);
 }
 
+HWND WINAPI FindWindowExAHook(HWND hWndParent, HWND hWndChildAfter, LPCSTR lpszClass, LPCSTR lpszWindow)
+{
+    if (lpszClass != NULL && gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        char ansiNewClassName[CLASS_NAME_MAX_LENGTH];
+        wcstombs_s(nullptr, ansiNewClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
+
+        if (lpszWindow != NULL && gInjectionInfo.windowName[0] != L'\0')
+        {
+            char ansiNewWindowName[WINDOW_NAME_MAX_LENGTH];
+            wcstombs_s(nullptr, ansiNewWindowName, WINDOW_NAME_MAX_LENGTH, gInjectionInfo.windowName, _TRUNCATE);
+            return FindWindowExA(hWndParent, hWndChildAfter, ansiNewClassName, ansiNewWindowName);
+        }
+        return FindWindowExA(hWndParent, hWndChildAfter, ansiNewClassName, lpszWindow);
+    }
+    return FindWindowExA(hWndParent, hWndChildAfter, lpszClass, lpszWindow);
+}
+
+HWND WINAPI FindWindowExWHook(HWND hWndParent, HWND hWndChildAfter, LPCWSTR lpszClass, LPCWSTR lpszWindow)
+{
+    if (lpszClass != NULL && gInjectionInfo.windowClassName[0] != L'\0')
+    {
+        if (lpszWindow != NULL && gInjectionInfo.windowName[0] != L'\0')
+        {
+            return FindWindowExW(hWndParent, hWndChildAfter, gInjectionInfo.windowClassName, gInjectionInfo.windowName);
+        }
+        return FindWindowExW(hWndParent, hWndChildAfter, gInjectionInfo.windowClassName, lpszWindow);
+    }
+    return FindWindowExW(hWndParent, hWndChildAfter, lpszClass, lpszWindow);
+}
+
 HWND WINAPI CreateWindowExAHook(
     _In_     DWORD     dwExStyle,
     _In_opt_ LPCSTR   lpClassName,
@@ -342,12 +378,20 @@ HWND WINAPI CreateWindowExAHook(
         return CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
+    if (dwStyle & WS_CHILD) {
+        return CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
+
     LPCSTR finalClassName = lpClassName;
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpClassName != NULL && !IS_INTRESOURCE(lpClassName))
     {
+        if (strcmp(lpClassName, g_SpoofedClassNameA) == 0)
+        {
         static char ansiClassName[CLASS_NAME_MAX_LENGTH];
         wcstombs_s(nullptr, ansiClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         finalClassName = ansiClassName;
+    }
     }
 
     LPCSTR finalWindowName = lpWindowName;
@@ -362,6 +406,12 @@ HWND WINAPI CreateWindowExAHook(
     int finalY = gInjectionInfo.windowPosY;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
+
+    if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_FORCE_WINDOW) == InjectionFlags::HOOK_FORCE_WINDOW) {
+        dwStyle &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+        dwStyle |= WS_POPUP;
+        dwExStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
+    }
 
     return CreateWindowExA(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
         finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
@@ -388,10 +438,17 @@ HWND WINAPI CreateWindowExWHook(
         return CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
+    if (dwStyle & WS_CHILD) {
+        return CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
+
     LPCWSTR finalClassName = lpClassName;
-    if (gInjectionInfo.windowClassName[0] != L'\0')
+    if (gInjectionInfo.windowClassName[0] != L'\0' && lpClassName != NULL && !IS_INTRESOURCE(lpClassName))
     {
+        if (wcscmp(lpClassName, g_SpoofedClassNameW) == 0)
+        {
         finalClassName = gInjectionInfo.windowClassName;
+    }
     }
 
     LPCWSTR finalWindowName = lpWindowName;
@@ -405,8 +462,24 @@ HWND WINAPI CreateWindowExWHook(
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
 
+    if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_FORCE_WINDOW) == InjectionFlags::HOOK_FORCE_WINDOW) {
+        dwStyle &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+        dwStyle |= WS_POPUP;
+        dwExStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
+    }
+
     return CreateWindowExW(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
         finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
+}
+
+HWND WINAPI CreateWindowAHook(LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int x, int y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
+{
+    return CreateWindowExAHook(0, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+}
+
+HWND WINAPI CreateWindowWHook(LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int x, int y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
+{
+    return CreateWindowExWHook(0, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 BOOL WINAPI SetWindowPosHook(
@@ -444,6 +517,110 @@ BOOL WINAPI MoveWindowHook(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOO
 
     return MoveWindow(hWnd, finalX, finalY, finalWidth, finalHeight, bRepaint);
 }
+
+// DISPLAY HOOKS
+BOOL WINAPI AdjustWindowRectHook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu)
+{
+    return TRUE;
+}
+
+BOOL WINAPI AdjustWindowRectExHook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWORD dwExStyle)
+{
+    return TRUE;
+}
+
+int WINAPI GetSystemMetricsHook(int nIndex)
+{
+    if (nIndex == SM_CXSCREEN && gInjectionInfo.windowSizeX != 0) return gInjectionInfo.windowSizeX;
+    if (nIndex == SM_CYSCREEN && gInjectionInfo.windowSizeY != 0) return gInjectionInfo.windowSizeY;
+    return GetSystemMetrics(nIndex);
+}
+
+LONG WINAPI ChangeDisplaySettingsAHook(DEVMODEA* lpDevMode, DWORD dwFlags) { return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsWHook(DEVMODEW* lpDevMode, DWORD dwFlags) { return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsExAHook(LPCSTR lpszDeviceName, DEVMODEA* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) { return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsExWHook(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) { return DISP_CHANGE_SUCCESSFUL; }
+
+LONG WINAPI SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
+{
+    if (nIndex == GWL_STYLE) {
+        dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+        dwNewLong |= WS_POPUP;
+    }
+    return SetWindowLongA(hWnd, nIndex, dwNewLong);
+}
+
+LONG WINAPI SetWindowLongWHook(HWND hWnd, int nIndex, LONG dwNewLong)
+{
+    if (nIndex == GWL_STYLE) {
+        dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+        dwNewLong |= WS_POPUP;
+    }
+    return SetWindowLongW(hWnd, nIndex, dwNewLong);
+}
+
+BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
+{
+    BOOL result = GetMonitorInfoA(hMonitor, lpmi);
+    if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
+        lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
+        lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
+        lpmi->rcWork = lpmi->rcMonitor;
+    }
+    return result;
+}
+
+BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
+{
+    BOOL result = GetMonitorInfoW(hMonitor, lpmi);
+    if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
+        lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
+        lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
+        lpmi->rcWork = lpmi->rcMonitor;
+    }
+    return result;
+}
+
+BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
+{
+    BOOL result = SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
+    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
+        LPRECT rect = (LPRECT)pvParam;
+        rect->right = rect->left + gInjectionInfo.windowSizeX;
+        rect->bottom = rect->top + gInjectionInfo.windowSizeY;
+    }
+    return result;
+}
+
+BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
+{
+    BOOL result = SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
+    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
+        LPRECT rect = (LPRECT)pvParam;
+        rect->right = rect->left + gInjectionInfo.windowSizeX;
+        rect->bottom = rect->top + gInjectionInfo.windowSizeY;
+    }
+    return result;
+}
+
+BOOL WINAPI EnumDisplaySettingsAHook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVMODEA* lpDevMode)
+{
+    BOOL result = EnumDisplaySettingsA(lpszDeviceName, iModeNum, lpDevMode);
+    if (result && lpDevMode != NULL && gInjectionInfo.windowSizeX != 0) {
+        if (lpDevMode->dmPelsWidth < (DWORD)gInjectionInfo.windowSizeX) lpDevMode->dmPelsWidth = gInjectionInfo.windowSizeX;
+        if (lpDevMode->dmPelsHeight < (DWORD)gInjectionInfo.windowSizeY) lpDevMode->dmPelsHeight = gInjectionInfo.windowSizeY;
+    }
+    return result;
+}
+
+BOOL WINAPI EnumDisplaySettingsWHook(LPCWSTR lpszDeviceName, DWORD iModeNum, DEVMODEW* lpDevMode)
+{
+    BOOL result = EnumDisplaySettingsW(lpszDeviceName, iModeNum, lpDevMode);
+    if (result && lpDevMode != NULL && gInjectionInfo.windowSizeX != 0) {
+        if (lpDevMode->dmPelsWidth < (DWORD)gInjectionInfo.windowSizeX) lpDevMode->dmPelsWidth = gInjectionInfo.windowSizeX;
+        if (lpDevMode->dmPelsHeight < (DWORD)gInjectionInfo.windowSizeY) lpDevMode->dmPelsHeight = gInjectionInfo.windowSizeY;
+}
+    return result;
 }
 
 // MUTEX HOOKS
@@ -590,6 +767,33 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
     {
         if (doAnsi)    hookFunction("Kernel32", "CreateMutexA", CreateMutexAHook);
         if (doUnicode) hookFunction("Kernel32", "CreateMutexW", CreateMutexWHook);
+    }
+
+    // Install Display Hooks
+    if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_FORCE_WINDOW) == InjectionFlags::HOOK_FORCE_WINDOW)
+    {
+        // These don't take strings, so they ignore doAnsi/doUnicode, but respect Std/Ex
+        if (doStd) hookFunction("user32", "AdjustWindowRect", AdjustWindowRectHook);
+        if (doEx)  hookFunction("user32", "AdjustWindowRectEx", AdjustWindowRectExHook);
+
+        hookFunction("user32", "GetSystemMetrics", GetSystemMetricsHook);
+
+        if (doAnsi) {
+            hookFunction("user32", "SetWindowLongA", SetWindowLongAHook);
+            if (doStd) hookFunction("user32", "ChangeDisplaySettingsA", ChangeDisplaySettingsAHook);
+            if (doEx)  hookFunction("user32", "ChangeDisplaySettingsExA", ChangeDisplaySettingsExAHook);
+            hookFunction("user32", "GetMonitorInfoA", GetMonitorInfoAHook);
+            hookFunction("user32", "SystemParametersInfoA", SystemParametersInfoAHook);
+            hookFunction("user32", "EnumDisplaySettingsA", EnumDisplaySettingsAHook);
+        }
+        if (doUnicode) {
+            hookFunction("user32", "SetWindowLongW", SetWindowLongWHook);
+            if (doStd) hookFunction("user32", "ChangeDisplaySettingsW", ChangeDisplaySettingsWHook);
+            if (doEx)  hookFunction("user32", "ChangeDisplaySettingsExW", ChangeDisplaySettingsExWHook);
+            hookFunction("user32", "GetMonitorInfoW", GetMonitorInfoWHook);
+            hookFunction("user32", "SystemParametersInfoW", SystemParametersInfoWHook);
+            hookFunction("user32", "EnumDisplaySettingsW", EnumDisplaySettingsWHook);
+        }
     }
 
     RhWakeUpProcess();

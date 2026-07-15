@@ -26,7 +26,8 @@ void print_usage() {
         << L"  -FindWindow             Enable FindWindow hook.\n"
         << L"  -Mutex <Name>           Hook Mutex.\n"
         << L"  -Width <W> -Height <H>  Set Window Size.\n"
-        << L"  -Posx <X> -Posy <Y>     Set Window Position.\n\n"
+        << L"  -Posx <X> -Posy <Y>     Set Window Position.\n"
+        << L"  -ForceWindow            Force window style, monitor size, and display settings.\n\n"
         << L"FILTERS:\n"
         << L"  -A                      Enable ANSI hooks (e.g. RegisterClassA).\n"
         << L"  -W                      Enable Unicode hooks (e.g. RegisterClassW).\n"
@@ -148,6 +149,9 @@ int wmain(int argc, wchar_t* argv[])
         }
         else if (lower_arg == L"-movewindow") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_MOVE_WINDOW;
+        }
+        else if (lower_arg == L"-forcewindow") {
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_FORCE_WINDOW;
         }
         else if (lower_arg == L"-a") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI;
