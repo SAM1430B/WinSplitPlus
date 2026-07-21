@@ -10,7 +10,7 @@ extern InjectionInfo gInjectionInfo;
 // FILTER LISTS
 static const char* IGNORED_MODULES[] = {
     "protoinput", "gtomnk", "dinput8", "xinput", "d3d9", "d3d11", "dxgi",
-    "gameoverlayrenderer", "discordhook", "rtss", "specialk"
+    "gameoverlayrenderer", "discordhook", "rtss", "specialk", "windowmovehook"
 };
 
 static const char* IGNORED_CLASSES[] = {

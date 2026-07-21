@@ -44,8 +44,8 @@ struct InjectionInfo
 
     std::uint32_t windowSizeX = 0;
     std::uint32_t windowSizeY = 0;
-    std::uint32_t windowPosX = 0;
-    std::uint32_t windowPosY = 0;
+    std::int32_t windowPosX = CW_USEDEFAULT;
+    std::int32_t windowPosY = CW_USEDEFAULT;
     
     wchar_t mutexOriginalName[MUTEX_NAME_MAX_LENGTH]{};
     wchar_t mutexNewName[MUTEX_NAME_MAX_LENGTH]{};

@@ -229,8 +229,8 @@ HWND WINAPI CreateWindowExAHook(
         finalWindowName = ansiWindowName;
     }
 
-    int finalX = gInjectionInfo.windowPosX;
-    int finalY = gInjectionInfo.windowPosY;
+    int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : x;
+    int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : y;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
 
@@ -284,8 +284,8 @@ HWND WINAPI CreateWindowExWHook(
         finalWindowName = gInjectionInfo.windowName;
     }
 
-    int finalX = gInjectionInfo.windowPosX;
-    int finalY = gInjectionInfo.windowPosY;
+    int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : x;
+    int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : y;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
 
@@ -319,12 +319,12 @@ BOOL WINAPI SetWindowPosHook(
     _In_     UINT uFlags
 )
 {
-    int finalX = (gInjectionInfo.windowPosX != 0) ? gInjectionInfo.windowPosX : X;
-    int finalY = (gInjectionInfo.windowPosY != 0) ? gInjectionInfo.windowPosY : Y;
+    int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : X;
+    int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : Y;
     int finalCx = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : cx;
     int finalCy = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : cy;
 
-    if (gInjectionInfo.windowPosX != 0 || gInjectionInfo.windowPosY != 0) {
+    if (gInjectionInfo.windowPosX != CW_USEDEFAULT || gInjectionInfo.windowPosY != CW_USEDEFAULT) {
         uFlags &= ~SWP_NOMOVE;
     }
 
@@ -337,8 +337,8 @@ BOOL WINAPI SetWindowPosHook(
 
 BOOL WINAPI MoveWindowHook(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOOL bRepaint)
 {
-    int finalX = (gInjectionInfo.windowPosX != 0) ? gInjectionInfo.windowPosX : X;
-    int finalY = (gInjectionInfo.windowPosY != 0) ? gInjectionInfo.windowPosY : Y;
+    int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : X;
+    int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : Y;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
     int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : nHeight;
 
@@ -398,9 +398,13 @@ BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 	// Filter
     if (IsCallerIgnoredModule()) return result;
 
-    if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
-        lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
-        lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
+    if (result && lpmi != NULL) {
+        if (gInjectionInfo.windowPosX != CW_USEDEFAULT) {lpmi->rcMonitor.left = gInjectionInfo.windowPosX;}
+        if (gInjectionInfo.windowPosY != CW_USEDEFAULT) {lpmi->rcMonitor.top = gInjectionInfo.windowPosY;}
+
+        if (gInjectionInfo.windowSizeX != 0) {lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;}
+        if (gInjectionInfo.windowSizeY != 0) {lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;}
+
         lpmi->rcWork = lpmi->rcMonitor;
     }
     return result;
@@ -413,9 +417,13 @@ BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 	// Filter
 	if (IsCallerIgnoredModule()) return result;
 
-    if (result && lpmi != NULL && gInjectionInfo.windowSizeX != 0) {
-        lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
-        lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
+    if (result && lpmi != NULL) {
+        if (gInjectionInfo.windowPosX != CW_USEDEFAULT) lpmi->rcMonitor.left = gInjectionInfo.windowPosX;
+        if (gInjectionInfo.windowPosY != CW_USEDEFAULT) lpmi->rcMonitor.top = gInjectionInfo.windowPosY;
+
+        if (gInjectionInfo.windowSizeX != 0) lpmi->rcMonitor.right = lpmi->rcMonitor.left + gInjectionInfo.windowSizeX;
+        if (gInjectionInfo.windowSizeY != 0) lpmi->rcMonitor.bottom = lpmi->rcMonitor.top + gInjectionInfo.windowSizeY;
+
         lpmi->rcWork = lpmi->rcMonitor;
     }
     return result;
@@ -428,10 +436,14 @@ BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam
 	// Filter
 	if (IsCallerIgnoredModule()) return result;
 
-    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
+    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result) {
         LPRECT rect = (LPRECT)pvParam;
-        rect->right = rect->left + gInjectionInfo.windowSizeX;
-        rect->bottom = rect->top + gInjectionInfo.windowSizeY;
+
+        if (gInjectionInfo.windowPosX != CW_USEDEFAULT) rect->left = gInjectionInfo.windowPosX;
+        if (gInjectionInfo.windowPosY != CW_USEDEFAULT) rect->top = gInjectionInfo.windowPosY;
+
+        if (gInjectionInfo.windowSizeX != 0) rect->right = rect->left + gInjectionInfo.windowSizeX;
+        if (gInjectionInfo.windowSizeY != 0) rect->bottom = rect->top + gInjectionInfo.windowSizeY;
     }
     return result;
 }
@@ -443,10 +455,14 @@ BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam
 	// Filter
 	if (IsCallerIgnoredModule()) return result;
 
-    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result && gInjectionInfo.windowSizeX != 0) {
+    if (uiAction == SPI_GETWORKAREA && pvParam != NULL && result) {
         LPRECT rect = (LPRECT)pvParam;
-        rect->right = rect->left + gInjectionInfo.windowSizeX;
-        rect->bottom = rect->top + gInjectionInfo.windowSizeY;
+
+        if (gInjectionInfo.windowPosX != CW_USEDEFAULT) rect->left = gInjectionInfo.windowPosX;
+        if (gInjectionInfo.windowPosY != CW_USEDEFAULT) rect->top = gInjectionInfo.windowPosY;
+
+        if (gInjectionInfo.windowSizeX != 0) rect->right = rect->left + gInjectionInfo.windowSizeX;
+        if (gInjectionInfo.windowSizeY != 0) rect->bottom = rect->top + gInjectionInfo.windowSizeY;
     }
     return result;
 }
