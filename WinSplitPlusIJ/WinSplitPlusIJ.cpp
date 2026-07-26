@@ -41,7 +41,7 @@ ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
         if (g_SpoofedClassNameA[0] == '\0') {
             strcpy_s(g_SpoofedClassNameA, CLASS_NAME_MAX_LENGTH, lpWndClass->lpszClassName);
 
-        static char ansiName[CLASS_NAME_MAX_LENGTH];
+        char ansiName[CLASS_NAME_MAX_LENGTH];
         size_t convertedCount;
             wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         wndClass.lpszClassName = ansiName;
@@ -66,7 +66,7 @@ ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
         if (g_SpoofedClassNameA[0] == '\0') {
             strcpy_s(g_SpoofedClassNameA, CLASS_NAME_MAX_LENGTH, lpwcx->lpszClassName);
 
-        static char ansiName[CLASS_NAME_MAX_LENGTH];
+        char ansiName[CLASS_NAME_MAX_LENGTH];
         size_t convertedCount;
             wcstombs_s(&convertedCount, ansiName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         wndClassEx.lpszClassName = ansiName;
@@ -215,7 +215,7 @@ HWND WINAPI CreateWindowExAHook(
     {
         if (strcmp(lpClassName, g_SpoofedClassNameA) == 0)
         {
-        static char ansiClassName[CLASS_NAME_MAX_LENGTH];
+        char ansiClassName[CLASS_NAME_MAX_LENGTH];
         wcstombs_s(nullptr, ansiClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
         finalClassName = ansiClassName;
     }
@@ -224,7 +224,7 @@ HWND WINAPI CreateWindowExAHook(
     LPCSTR finalWindowName = lpWindowName;
     if (gInjectionInfo.windowName[0] != L'\0')
     {
-        static char ansiWindowName[WINDOW_NAME_MAX_LENGTH];
+        char ansiWindowName[WINDOW_NAME_MAX_LENGTH];
         wcstombs_s(nullptr, ansiWindowName, WINDOW_NAME_MAX_LENGTH, gInjectionInfo.windowName, _TRUNCATE);
         finalWindowName = ansiWindowName;
     }
