@@ -143,15 +143,19 @@ int wmain(int argc, wchar_t* argv[])
         }
         else if (lower_arg == L"-width" && i + 1 < argc) {
             injectionInfo.windowSizeX = std::stoul(argv[++i]);
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-height" && i + 1 < argc) {
             injectionInfo.windowSizeY = std::stoul(argv[++i]);
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-posx" && i + 1 < argc) {
             injectionInfo.windowPosX = std::stoul(argv[++i]);
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-posy" && i + 1 < argc) {
             injectionInfo.windowPosY = std::stoul(argv[++i]);
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-setwindowpos") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_SET_WINDOW_POS;
@@ -160,7 +164,7 @@ int wmain(int argc, wchar_t* argv[])
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_MOVE_WINDOW;
         }
         else if (lower_arg == L"-forcewindow") {
-            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_FORCE_WINDOW;
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_FORCE_WINDOW | InjectionFlags::HOOK_CREATE_WINDOW;
         }
         else if (lower_arg == L"-log") {
             g_LoggingEnabled = true;
