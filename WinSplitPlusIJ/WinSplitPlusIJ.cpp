@@ -13,6 +13,11 @@ And modified by @SAM1430B from splitscreen.me .
 #include <iostream>
 
 #include "include\InjectionInfo.h" 
+
+#define LOG_PREFIX "[DLL]"
+#define LOG_PREFIX_W L"[DLL]"
+#include "include\Logger.h"
+
 #include "WindowFilters.h"
 
 #if defined(_WIN64)
@@ -22,6 +27,7 @@ And modified by @SAM1430B from splitscreen.me .
 #endif
 
 InjectionInfo gInjectionInfo;
+bool g_LoggingEnabled = false;
 HMODULE g_hGameModule = NULL;
 
 char g_SpoofedClassNameA[CLASS_NAME_MAX_LENGTH] = { 0 };
@@ -30,6 +36,7 @@ wchar_t g_SpoofedClassNameW[CLASS_NAME_MAX_LENGTH] = { 0 };
 // WINDOW HOOKS
 ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
 {
+    DEBUG_LOG_W(L"RegisterClassAHook called.");
     // Filter
     if (IsCallerIgnoredModule() || IgnoreClassA(lpWndClass->lpszClassName)) return RegisterClassA(lpWndClass);
 
@@ -55,6 +62,7 @@ ATOM WINAPI RegisterClassAHook(_In_ const WNDCLASSA* lpWndClass)
 
 ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
 {
+    DEBUG_LOG_W(L"RegisterClassExAHook called.");
     // Filter
 	if (IsCallerIgnoredModule() || IgnoreClassA(lpwcx->lpszClassName)) return RegisterClassExA(lpwcx);
 
@@ -80,6 +88,7 @@ ATOM WINAPI RegisterClassExAHook(_In_ const WNDCLASSEXA* lpwcx)
 
 ATOM WINAPI RegisterClassWHook(_In_ const WNDCLASSW* lpWndClass)
 {
+    DEBUG_LOG_W(L"RegisterClassWHook called.");
     // Filter
 	if (IsCallerIgnoredModule() || IgnoreClassW(lpWndClass->lpszClassName)) return RegisterClassW(lpWndClass);
 
@@ -101,6 +110,7 @@ ATOM WINAPI RegisterClassWHook(_In_ const WNDCLASSW* lpWndClass)
 
 ATOM WINAPI RegisterClassExWHook(_In_ const WNDCLASSEXW* lpwcx)
 {
+    DEBUG_LOG_W(L"RegisterClassExWHook called.");
     // Filter
 	if (IsCallerIgnoredModule() || IgnoreClassW(lpwcx->lpszClassName)) return RegisterClassExW(lpwcx);
 
@@ -122,6 +132,7 @@ ATOM WINAPI RegisterClassExWHook(_In_ const WNDCLASSEXW* lpwcx)
 
 HWND WINAPI FindWindowAHook(LPCSTR lpClassName, LPCSTR lpWindowName)
 {
+    DEBUG_LOG_W(L"FindWindowAHook called.");
     if (lpClassName != NULL && gInjectionInfo.windowClassName[0] != L'\0')
     {
         char ansiNewClassName[CLASS_NAME_MAX_LENGTH];
@@ -141,6 +152,7 @@ HWND WINAPI FindWindowAHook(LPCSTR lpClassName, LPCSTR lpWindowName)
 
 HWND WINAPI FindWindowWHook(LPCWSTR lpClassName, LPCWSTR lpWindowName)
 {
+    DEBUG_LOG_W(L"FindWindowWHook called.");
     if (lpClassName != NULL && gInjectionInfo.windowClassName[0] != L'\0')
     {
         if (lpWindowName != NULL && gInjectionInfo.windowName[0] != L'\0')
@@ -155,6 +167,7 @@ HWND WINAPI FindWindowWHook(LPCWSTR lpClassName, LPCWSTR lpWindowName)
 
 HWND WINAPI FindWindowExAHook(HWND hWndParent, HWND hWndChildAfter, LPCSTR lpszClass, LPCSTR lpszWindow)
 {
+    DEBUG_LOG_W(L"FindWindowExAHook called.");
     if (lpszClass != NULL && gInjectionInfo.windowClassName[0] != L'\0')
     {
         char ansiNewClassName[CLASS_NAME_MAX_LENGTH];
@@ -173,6 +186,7 @@ HWND WINAPI FindWindowExAHook(HWND hWndParent, HWND hWndChildAfter, LPCSTR lpszC
 
 HWND WINAPI FindWindowExWHook(HWND hWndParent, HWND hWndChildAfter, LPCWSTR lpszClass, LPCWSTR lpszWindow)
 {
+    DEBUG_LOG_W(L"FindWindowExWHook called.");
     if (lpszClass != NULL && gInjectionInfo.windowClassName[0] != L'\0')
     {
         if (lpszWindow != NULL && gInjectionInfo.windowName[0] != L'\0')
@@ -199,9 +213,21 @@ HWND WINAPI CreateWindowExAHook(
     _In_opt_ LPVOID    lpParam
 )
 {
+    DEBUG_LOG_W(L"CreateWindowExAHook called.");
+    if (lpClassName && !IS_INTRESOURCE(lpClassName)) {
+        DEBUG_LOG_W(L"Requested ClassName (A): " << lpClassName);
+    }
+    if (lpWindowName) {
+        DEBUG_LOG_W(L"Requested WindowName (A): " << lpWindowName);
+    }
+
 	// Filter
-    if (IsCallerIgnoredModule() || IgnoreClassA(lpClassName))
-    {
+    if (IsCallerIgnoredModule()) {
+        DEBUG_LOG_W(L"Ignoring CreateWindowExA due to IsCallerIgnoredModule.");
+        return CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
+    if (IgnoreClassA(lpClassName)) {
+        DEBUG_LOG_W(L"Ignoring CreateWindowExA due to IgnoreClassA.");
         return CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
@@ -210,6 +236,7 @@ HWND WINAPI CreateWindowExAHook(
     }
 
     LPCSTR finalClassName = lpClassName;
+    std::string spoofedClassName;
 
     if (gInjectionInfo.windowClassName[0] != L'\0' && lpClassName != NULL && !IS_INTRESOURCE(lpClassName))
     {
@@ -217,16 +244,20 @@ HWND WINAPI CreateWindowExAHook(
         {
         char ansiClassName[CLASS_NAME_MAX_LENGTH];
         wcstombs_s(nullptr, ansiClassName, CLASS_NAME_MAX_LENGTH, gInjectionInfo.windowClassName, _TRUNCATE);
-        finalClassName = ansiClassName;
+            spoofedClassName = ansiClassName;
+            finalClassName = spoofedClassName.c_str();
     }
     }
 
     LPCSTR finalWindowName = lpWindowName;
+    std::string spoofedWindowName;
+
     if (gInjectionInfo.windowName[0] != L'\0')
     {
         char ansiWindowName[WINDOW_NAME_MAX_LENGTH];
         wcstombs_s(nullptr, ansiWindowName, WINDOW_NAME_MAX_LENGTH, gInjectionInfo.windowName, _TRUNCATE);
-        finalWindowName = ansiWindowName;
+        spoofedWindowName = ansiWindowName;
+        finalWindowName = spoofedWindowName.c_str();
     }
 
     int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : x;
@@ -239,6 +270,8 @@ HWND WINAPI CreateWindowExAHook(
         dwStyle |= WS_POPUP;
         dwExStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
     }
+
+    DEBUG_LOG_W(L"Applying CreateWindowExA with Size: " << finalWidth << L"x" << finalHeight << L" Pos: " << finalX << L"," << finalY);
 
     return CreateWindowExA(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
         finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
@@ -259,9 +292,21 @@ HWND WINAPI CreateWindowExWHook(
     _In_opt_ LPVOID    lpParam
 )
 {
+    DEBUG_LOG_W(L"CreateWindowExWHook called.");
+    if (lpClassName && !IS_INTRESOURCE(lpClassName)) {
+        DEBUG_LOG_W(L"Requested ClassName (W): " << lpClassName);
+    }
+    if (lpWindowName) {
+        DEBUG_LOG_W(L"Requested WindowName (W): " << lpWindowName);
+    }
+
     // Filter
-    if (IsCallerIgnoredModule() || IgnoreClassW(lpClassName))
-    {
+    if (IsCallerIgnoredModule()) {
+        DEBUG_LOG_W(L"Ignoring CreateWindowExW due to IsCallerIgnoredModule.");
+        return CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
+    if (IgnoreClassW(lpClassName)) {
+        DEBUG_LOG_W(L"Ignoring CreateWindowExW due to IgnoreClassW.");
         return CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     }
 
@@ -295,17 +340,21 @@ HWND WINAPI CreateWindowExWHook(
         dwExStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
     }
 
+    DEBUG_LOG_W(L"Applying CreateWindowExW with Size: " << finalWidth << L"x" << finalHeight << L" Pos: " << finalX << L"," << finalY);
+
     return CreateWindowExW(dwExStyle, finalClassName, finalWindowName, dwStyle, finalX, finalY,
         finalWidth, finalHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 HWND WINAPI CreateWindowAHook(LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int x, int y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
+    DEBUG_LOG_W(L"CreateWindowAHook called.");
     return CreateWindowExAHook(0, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 HWND WINAPI CreateWindowWHook(LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int x, int y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
+    DEBUG_LOG_W(L"CreateWindowWHook called.");
     return CreateWindowExWHook(0, lpClassName, lpWindowName, dwStyle, x, y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -319,6 +368,7 @@ BOOL WINAPI SetWindowPosHook(
     _In_     UINT uFlags
 )
 {
+    DEBUG_LOG_W(L"SetWindowPosHook called.");
     int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : X;
     int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : Y;
     int finalCx = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : cx;
@@ -337,6 +387,7 @@ BOOL WINAPI SetWindowPosHook(
 
 BOOL WINAPI MoveWindowHook(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOOL bRepaint)
 {
+    DEBUG_LOG_W(L"MoveWindowHook called.");
     int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : X;
     int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : Y;
     int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : nWidth;
@@ -348,16 +399,19 @@ BOOL WINAPI MoveWindowHook(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOO
 // DISPLAY HOOKS
 BOOL WINAPI AdjustWindowRectHook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu)
 {
+    DEBUG_LOG_W(L"AdjustWindowRectHook called.");
     return TRUE;
 }
 
 BOOL WINAPI AdjustWindowRectExHook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWORD dwExStyle)
 {
+    DEBUG_LOG_W(L"AdjustWindowRectExHook called.");
     return TRUE;
 }
 
 int WINAPI GetSystemMetricsHook(int nIndex)
 {
+    DEBUG_LOG_W(L"GetSystemMetricsHook called.");
     // Filter
     if (IsCallerIgnoredModule()) return GetSystemMetrics(nIndex);
 
@@ -366,33 +420,40 @@ int WINAPI GetSystemMetricsHook(int nIndex)
     return GetSystemMetrics(nIndex);
 }
 
-LONG WINAPI ChangeDisplaySettingsAHook(DEVMODEA* lpDevMode, DWORD dwFlags) { return DISP_CHANGE_SUCCESSFUL; }
-LONG WINAPI ChangeDisplaySettingsWHook(DEVMODEW* lpDevMode, DWORD dwFlags) { return DISP_CHANGE_SUCCESSFUL; }
-LONG WINAPI ChangeDisplaySettingsExAHook(LPCSTR lpszDeviceName, DEVMODEA* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) { return DISP_CHANGE_SUCCESSFUL; }
-LONG WINAPI ChangeDisplaySettingsExWHook(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) { return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsAHook(DEVMODEA* lpDevMode, DWORD dwFlags) {
+    DEBUG_LOG_W(L"ChangeDisplaySettingsAHook called."); return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsWHook(DEVMODEW* lpDevMode, DWORD dwFlags) {
+    DEBUG_LOG_W(L"ChangeDisplaySettingsWHook called."); return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsExAHook(LPCSTR lpszDeviceName, DEVMODEA* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) {
+    DEBUG_LOG_W(L"ChangeDisplaySettingsExAHook called."); return DISP_CHANGE_SUCCESSFUL; }
+LONG WINAPI ChangeDisplaySettingsExWHook(LPCWSTR lpszDeviceName, DEVMODEW* lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam) {
+    DEBUG_LOG_W(L"ChangeDisplaySettingsExWHook called."); return DISP_CHANGE_SUCCESSFUL; }
 
-LONG WINAPI SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
+LONG_PTR WINAPI SetWindowLongPtrAHook(HWND hWnd, int nIndex, LONG_PTR dwNewLong)
 {
+    DEBUG_LOG_W(L"SetWindowLongPtrAHook called.");
     // Filter
     if (nIndex == GWL_STYLE && !IsIgnoredHwnd(hWnd) && !IsCallerIgnoredModule()) {
         dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
         dwNewLong |= WS_POPUP;
     }
-    return SetWindowLongA(hWnd, nIndex, dwNewLong);
+    return SetWindowLongPtrA(hWnd, nIndex, dwNewLong);
 }
 
-LONG WINAPI SetWindowLongWHook(HWND hWnd, int nIndex, LONG dwNewLong)
+LONG_PTR WINAPI SetWindowLongPtrWHook(HWND hWnd, int nIndex, LONG_PTR dwNewLong)
 {
+    DEBUG_LOG_W(L"SetWindowLongPtrWHook called.");
     // Filter
     if (nIndex == GWL_STYLE && !IsIgnoredHwnd(hWnd) && !IsCallerIgnoredModule()) {
         dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
         dwNewLong |= WS_POPUP;
     }
-    return SetWindowLongW(hWnd, nIndex, dwNewLong);
+    return SetWindowLongPtrW(hWnd, nIndex, dwNewLong);
 }
 
 BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 {
+    DEBUG_LOG_W(L"GetMonitorInfoAHook called.");
     BOOL result = GetMonitorInfoA(hMonitor, lpmi);
 
 	// Filter
@@ -412,6 +473,7 @@ BOOL WINAPI GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 
 BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 {
+    DEBUG_LOG_W(L"GetMonitorInfoWHook called.");
     BOOL result = GetMonitorInfoW(hMonitor, lpmi);
 
 	// Filter
@@ -431,6 +493,7 @@ BOOL WINAPI GetMonitorInfoWHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
 
 BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
 {
+    DEBUG_LOG_W(L"SystemParametersInfoAHook called.");
     BOOL result = SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
 
 	// Filter
@@ -450,6 +513,7 @@ BOOL WINAPI SystemParametersInfoAHook(UINT uiAction, UINT uiParam, PVOID pvParam
 
 BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni)
 {
+    DEBUG_LOG_W(L"SystemParametersInfoWHook called.");
     BOOL result = SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
 
 	// Filter
@@ -469,6 +533,7 @@ BOOL WINAPI SystemParametersInfoWHook(UINT uiAction, UINT uiParam, PVOID pvParam
 
 BOOL WINAPI EnumDisplaySettingsAHook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVMODEA* lpDevMode)
 {
+    DEBUG_LOG_W(L"EnumDisplaySettingsAHook called.");
     BOOL result = EnumDisplaySettingsA(lpszDeviceName, iModeNum, lpDevMode);
 
 	// Filter
@@ -483,6 +548,7 @@ BOOL WINAPI EnumDisplaySettingsAHook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVM
 
 BOOL WINAPI EnumDisplaySettingsWHook(LPCWSTR lpszDeviceName, DWORD iModeNum, DEVMODEW* lpDevMode)
 {
+    DEBUG_LOG_W(L"EnumDisplaySettingsWHook called.");
     BOOL result = EnumDisplaySettingsW(lpszDeviceName, iModeNum, lpDevMode);
 
 	// Filter
@@ -502,6 +568,7 @@ HANDLE WINAPI CreateMutexAHook(
     _In_opt_ LPCSTR                lpName
 )
 {
+    DEBUG_LOG_W(L"CreateMutexAHook called.");
     if (!lpName) {
         return CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
     }
@@ -527,6 +594,7 @@ HANDLE WINAPI CreateMutexWHook(
     _In_opt_ LPCWSTR                lpName
 )
 {
+    DEBUG_LOG_W(L"CreateMutexWHook called.");
     if (!lpName) {
         return CreateMutexW(lpMutexAttributes, bInitialOwner, lpName);
     }
@@ -548,7 +616,7 @@ void hookFunction(const char* module, const char* function, PVOID hookFunction)
     {
         std::wstring wModule(module, module + strlen(module));
         std::wstring wFunction(function, function + strlen(function));
-        std::wcerr << L"Failed to get handle for module: " << wModule << L" while trying to hook " << wFunction << L". Module may not be loaded." << std::endl;
+        DEBUG_LOG_W(L"Failed to get handle for module: " << wModule << L" while trying to hook " << wFunction << L". Module may not be loaded.");
         return;
     }
 
@@ -557,12 +625,12 @@ void hookFunction(const char* module, const char* function, PVOID hookFunction)
     if (FAILED(result))
     {
         std::wstring wFunction(function, function + strlen(function));
-        std::wcerr << L"Failed to install hook for " << wFunction << L": " << RtlGetLastErrorString() << std::endl;
+        DEBUG_LOG_W(L"Failed to install hook for " << wFunction << L": " << RtlGetLastErrorString());
     }
     else
     {
         std::wstring wFunction(function, function + strlen(function));
-        std::wcout << wFunction << L" hook installed." << std::endl;
+        DEBUG_LOG_W(wFunction << L" hook installed.");
         ULONG ACLEntries[1] = { 0 };
         LhSetExclusiveACL(ACLEntries, 1, &hHook);
     }
@@ -575,7 +643,12 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
     if (inRemoteInfo->UserDataSize != sizeof(InjectionInfo)) return;
     memcpy_s(&gInjectionInfo, sizeof(InjectionInfo), inRemoteInfo->UserData, inRemoteInfo->UserDataSize);
 
-    std::wcout << L"WinSplitPlusIJ Entered\n";
+    if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_LOGGING) == InjectionFlags::HOOK_LOGGING) {
+        g_LoggingEnabled = true;
+        Logger::InitializeConsole();
+    }
+
+    DEBUG_LOG_W(L"WinSplitPlusIJ Entered");
 
     bool doAnsi = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_ANSI) == InjectionFlags::HOOK_ANSI;
     bool doUnicode = (gInjectionInfo.injectionFlags & InjectionFlags::HOOK_UNICODE) == InjectionFlags::HOOK_UNICODE;
@@ -651,7 +724,11 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
         hookFunction("user32", "GetSystemMetrics", GetSystemMetricsHook);
 
         if (doAnsi) {
-            hookFunction("user32", "SetWindowLongA", SetWindowLongAHook);
+#ifdef _WIN64
+            hookFunction("user32", "SetWindowLongPtrA", SetWindowLongPtrAHook);
+#else
+            hookFunction("user32", "SetWindowLongA", SetWindowLongPtrAHook);
+#endif
             if (doStd) hookFunction("user32", "ChangeDisplaySettingsA", ChangeDisplaySettingsAHook);
             if (doEx)  hookFunction("user32", "ChangeDisplaySettingsExA", ChangeDisplaySettingsExAHook);
             hookFunction("user32", "GetMonitorInfoA", GetMonitorInfoAHook);
@@ -659,7 +736,11 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
             hookFunction("user32", "EnumDisplaySettingsA", EnumDisplaySettingsAHook);
         }
         if (doUnicode) {
-            hookFunction("user32", "SetWindowLongW", SetWindowLongWHook);
+#ifdef _WIN64
+            hookFunction("user32", "SetWindowLongPtrW", SetWindowLongPtrWHook);
+#else
+            hookFunction("user32", "SetWindowLongW", SetWindowLongPtrWHook);
+#endif
             if (doStd) hookFunction("user32", "ChangeDisplaySettingsW", ChangeDisplaySettingsWHook);
             if (doEx)  hookFunction("user32", "ChangeDisplaySettingsExW", ChangeDisplaySettingsExWHook);
             hookFunction("user32", "GetMonitorInfoW", GetMonitorInfoWHook);

@@ -22,6 +22,7 @@ enum class InjectionFlags : std::uint64_t
     //HOOK_CREATE_SEMAPHORE = (1 << 11), // Enable Semaphore hooks
 
     HOOK_FORCE_WINDOW = (1 << 12),   // Force window style, monitor size, and display settings
+    HOOK_LOGGING = (1 << 13),        // Enable debug logging
 };
 
 // Operator overloads

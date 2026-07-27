@@ -16,6 +16,14 @@ And modified by @SAM1430B from splitscreen.me .
 
 #include "InjectionInfo.h"
 
+#define LOG_PREFIX "[Launcher]"
+#define LOG_PREFIX_W L"[Launcher]"
+#include "..\WinSplitPlusIJ\include\Logger.h"
+
+#include <iomanip>
+
+bool g_LoggingEnabled = false;
+
 // Command-line usage information
 void print_usage() {
     std::wcout << L"Usage: WinSplitPlus.exe [options] C:\\path\\to\\game.exe [game arguments]\n"
@@ -93,6 +101,7 @@ int wmain(int argc, wchar_t* argv[])
     bool hasVariantFilter = false; // -Std or -Ex?
 
     if (argc < 2) {
+        DEBUG_LOG_W(L"Insufficient arguments provided.");
         print_usage();
         system("pause");
         return 1;
@@ -153,6 +162,10 @@ int wmain(int argc, wchar_t* argv[])
         else if (lower_arg == L"-forcewindow") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_FORCE_WINDOW;
         }
+        else if (lower_arg == L"-log") {
+            g_LoggingEnabled = true;
+            injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_LOGGING;
+        }
         else if (lower_arg == L"-a") {
             injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI;
             hasCharsetFilter = true;
@@ -193,15 +206,25 @@ int wmain(int argc, wchar_t* argv[])
         return 1;
     }
 
+    if (g_LoggingEnabled) {
+        std::ofstream logFile("WinSplitPlus.log", std::ios::app);
+        if (logFile.is_open()) {
+            logFile << "\n============================================================\n";
+            logFile << "[WinSplitPlus] LAUNCHER SESSION STARTED\n";
+            logFile << "============================================================\n";
+            logFile.close();
+        }
+    }
+
     // Construct final names based on Player number
     if (!hasCharsetFilter) {
         injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_ANSI | InjectionFlags::HOOK_UNICODE;
-        std::wcout << L"Defaulting to ANSI + Unicode." << std::endl;
+        DEBUG_LOG_W(L"Defaulting to ANSI + Unicode.");
     }
 
     if (!hasVariantFilter) {
         injectionInfo.injectionFlags = injectionInfo.injectionFlags | InjectionFlags::HOOK_STANDARD | InjectionFlags::HOOK_EXTENDED;
-        std::wcout << L"Defaulting to Standard + Extended variants." << std::endl;
+        DEBUG_LOG_W(L"Defaulting to Standard + Extended variants.");
     }
 
     if ((injectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC) {
@@ -235,11 +258,11 @@ int wmain(int argc, wchar_t* argv[])
 
 #if defined(_WIN64)
     // 64-bit Build
-    std::wcout << L"Launcher Build: x64" << std::endl;
+    DEBUG_LOG_W(L"Launcher Build: x64");
     coreDllName = L"WinSplitPlusIJ64.dll";
 #else
     // 32-bit Build
-    std::wcout << L"Launcher Build: x32 (x86)" << std::endl;
+    DEBUG_LOG_W(L"Launcher Build: x32 (x86)");
     coreDllName = L"WinSplitPlusIJ32.dll";
 #endif
 
@@ -272,7 +295,7 @@ int wmain(int argc, wchar_t* argv[])
     si.cb = sizeof(si);
     std::wstring fullCommandLine = L"\"" + gamePath + L"\" " + gameArgs;
 
-    std::wcout << L"Launching game suspended: " << gamePath << std::endl;
+    DEBUG_LOG_W(L"Launching game suspended: " << gamePath);
     if (!CreateProcess(NULL, const_cast<wchar_t*>(fullCommandLine.c_str()), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
         std::wcerr << L"Failed to create process." << std::endl;
         return 1;
@@ -280,16 +303,16 @@ int wmain(int argc, wchar_t* argv[])
 
     if (dontSuspendProcess)
     {
-        std::wcout << L"Resuming process..." << std::endl;
+        DEBUG_LOG_W(L"Resuming process...");
         ResumeThread(pi.hThread);
 
-        std::wcout << L"Attempting to catch process..." << std::endl;
+        DEBUG_LOG_W(L"Attempting to catch process...");
 
         NTSTATUS nt = -1;
         int attempts = 0;
         const int MAX_ATTEMPTS = 1;
 
-        while (attempts < MAX_ATTEMPTS) {
+        DEBUG_LOG_W(L"Attempting injection...");
             nt = RhInjectLibrary(
                 pi.dwProcessId,
                 0,
@@ -321,7 +344,7 @@ int wmain(int argc, wchar_t* argv[])
     }
 	else  // If (!dontSuspendProcess)
     {
-
+        DEBUG_LOG_W(L"Injecting library into suspended process...");
         NTSTATUS nt = RhInjectLibrary(
             pi.dwProcessId,
             0,
@@ -341,15 +364,15 @@ int wmain(int argc, wchar_t* argv[])
             return 1;
         }
 
-        std::wcout << L"Resuming process..." << std::endl;
+        DEBUG_LOG_W(L"Resuming process...");
         ResumeThread(pi.hThread);
     }
 
-    std::wcout << L"Waiting for hooks to settle..." << std::endl;
+    DEBUG_LOG_W(L"Waiting for hooks to settle...");
     Sleep(2000);
 
     if (!pluginDlls.empty()) {
-        std::wcout << L"Injecting plugins..." << std::endl;
+        DEBUG_LOG_W(L"Injecting plugins...");
         for (const auto& dllPath : pluginDlls) {
             InjectStandardDLL(pi.hProcess, dllPath);
             Sleep(200);
@@ -359,6 +382,6 @@ int wmain(int argc, wchar_t* argv[])
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    std::wcout << L"Success." << std::endl;
+    DEBUG_LOG_W(L"WinSplitPlusIJ Injected Successfully.");
     return 0;
 }
