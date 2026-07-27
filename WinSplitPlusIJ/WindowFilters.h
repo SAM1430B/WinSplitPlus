@@ -19,7 +19,7 @@ static const char* IGNORED_CLASSES[] = {
     "Special K", "EOSOVH", "CurseOverlay", "TestDX11", "SKIV_", "InvisibleWindow",
     "TempDirect3D", "TempWindow", "DDrawCompat", "Overlay", "MSXML", "DIEmWin",
     "DirectSound", "Direct3D", "DirectDraw", "RawInput", "SDL_", "Message",
-    "IME", "MSCTF", "static"
+    "IME", "MSCTF", "static", "ConsoleWindowClass", "Console"
 };
 
 static const wchar_t* IGNORED_CLASSES_W[] = {
@@ -28,7 +28,7 @@ static const wchar_t* IGNORED_CLASSES_W[] = {
     L"Special K", L"EOSOVH", L"CurseOverlay", L"TestDX11", L"SKIV_", L"InvisibleWindow",
     L"TempDirect3D", L"TempWindow", L"DDrawCompat", L"Overlay", L"MSXML", L"DIEmWin",
     L"DirectSound", L"Direct3D", L"DirectDraw", L"RawInput", L"SDL_", L"Message",
-    L"IME", L"MSCTF", L"static"
+    L"IME", L"MSCTF", L"static", L"ConsoleWindowClass", L"Console"
 };
 
 // HELPER FUNCTIONS
