@@ -310,7 +310,10 @@ int wmain(int argc, wchar_t* argv[])
 
         NTSTATUS nt = -1;
         int attempts = 0;
-        const int MAX_ATTEMPTS = 1;
+        const int MAX_ATTEMPTS = 5;
+        
+        DEBUG_LOG_W(L"Waiting 3 seconds before injecting...");
+        Sleep(3000);
 
         DEBUG_LOG_W(L"Attempting injection...");
             nt = RhInjectLibrary(
@@ -326,13 +329,10 @@ int wmain(int argc, wchar_t* argv[])
             );
 
             if (nt == 0) {
-                std::wcout << L"Injection Successful on attempt " << (attempts + 1) << std::endl;
-                break;
+            DEBUG_LOG_W(L"Injection Successful.");
             }
             else {
-                attempts++;
-                Sleep(10);
-            }
+            DEBUG_LOG_W(L"Injection failed. Error: " << RtlGetLastErrorString());
         }
 
         if (nt != 0) {

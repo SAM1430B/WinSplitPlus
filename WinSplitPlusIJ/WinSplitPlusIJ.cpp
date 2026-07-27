@@ -636,6 +636,46 @@ void hookFunction(const char* module, const char* function, PVOID hookFunction)
     }
 }
 
+BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    DWORD processId;
+    GetWindowThreadProcessId(hwnd, &processId);
+    if (processId == GetCurrentProcessId()) {
+        if (!IsIgnoredHwnd(hwnd)) {
+            *(HWND*)lParam = hwnd;
+            return FALSE; // Found main window
+        }
+    }
+    return TRUE;
+}
+
+void ForceApplyWindowSettings() {
+    HWND hMainWindow = NULL;
+    EnumWindows(EnumWindowsProc, (LPARAM)&hMainWindow);
+    if (hMainWindow) {
+        DEBUG_LOG_W(L"Found main window already created, forcefully applying sizes...");
+        
+        if ((gInjectionInfo.injectionFlags & InjectionFlags::HOOK_FORCE_WINDOW) == InjectionFlags::HOOK_FORCE_WINDOW) {
+            DWORD dwStyle = GetWindowLongA(hMainWindow, GWL_STYLE);
+            dwStyle &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+            dwStyle |= WS_POPUP;
+            SetWindowLongA(hMainWindow, GWL_STYLE, dwStyle);
+        }
+
+        int finalX = (gInjectionInfo.windowPosX != CW_USEDEFAULT) ? gInjectionInfo.windowPosX : 0;
+        int finalY = (gInjectionInfo.windowPosY != CW_USEDEFAULT) ? gInjectionInfo.windowPosY : 0;
+        int finalWidth = (gInjectionInfo.windowSizeX != 0) ? gInjectionInfo.windowSizeX : 800;
+        int finalHeight = (gInjectionInfo.windowSizeY != 0) ? gInjectionInfo.windowSizeY : 600;
+        
+        UINT flags = SWP_NOZORDER | SWP_FRAMECHANGED;
+        if (gInjectionInfo.windowPosX == CW_USEDEFAULT && gInjectionInfo.windowPosY == CW_USEDEFAULT) flags |= SWP_NOMOVE;
+        if (gInjectionInfo.windowSizeX == 0 && gInjectionInfo.windowSizeY == 0) flags |= SWP_NOSIZE;
+
+        SetWindowPos(hMainWindow, NULL, finalX, finalY, finalWidth, finalHeight, flags);
+    } else {
+        DEBUG_LOG_W(L"No existing main window found to forcefully resize.");
+    }
+}
+
 extern "C" void __declspec(dllexport) __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo);
 
 void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
@@ -750,4 +790,9 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
     }
 
     RhWakeUpProcess();
+    
+    // Forcefully apply settings to windows that were created BEFORE we injected (late injection)
+    ForceApplyWindowSettings();
+    
+    DEBUG_LOG_W(L"WinSplitPlusIJ Initialization Complete");
 }
