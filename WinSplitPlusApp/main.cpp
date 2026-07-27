@@ -93,7 +93,7 @@ int wmain(int argc, wchar_t* argv[])
     std::wstring gamePath;
     std::wstring gameArgs;
     std::wstring baseMutexName;
-    int playerNumber = 1;
+    int playerNumber = -1;
     bool changeWindowName = false;
     bool dontSuspendProcess = false;
 
@@ -232,12 +232,14 @@ int wmain(int argc, wchar_t* argv[])
     }
 
     if ((injectionInfo.injectionFlags & InjectionFlags::HOOK_WND_PROC) == InjectionFlags::HOOK_WND_PROC) {
-        std::wstring finalClassName = L"WinSplitPlus" + std::to_wstring(playerNumber);
+        std::wstring finalClassName = L"WinSplitPlus";
+        if (playerNumber != -1) finalClassName += std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.windowClassName, CLASS_NAME_MAX_LENGTH, finalClassName.c_str());
     }
 
     if (changeWindowName) {
-        std::wstring finalWindowName = L"WinSplitPlus " + std::to_wstring(playerNumber);
+        std::wstring finalWindowName = L"WinSplitPlus ";
+        if (playerNumber != -1) finalWindowName += std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.windowName, WINDOW_NAME_MAX_LENGTH, finalWindowName.c_str());
     }
 
@@ -248,7 +250,8 @@ int wmain(int argc, wchar_t* argv[])
             return 1;
         }
         wcscpy_s(injectionInfo.mutexOriginalName, MUTEX_NAME_MAX_LENGTH, baseMutexName.c_str());
-        std::wstring finalMutexName = baseMutexName + std::to_wstring(playerNumber);
+        std::wstring finalMutexName = baseMutexName;
+        if (playerNumber != -1) finalMutexName += std::to_wstring(playerNumber);
         wcscpy_s(injectionInfo.mutexNewName, MUTEX_NAME_MAX_LENGTH, finalMutexName.c_str());
     }
 
