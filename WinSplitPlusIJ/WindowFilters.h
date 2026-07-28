@@ -32,6 +32,11 @@ static const wchar_t* IGNORED_CLASSES_W[] = {
 };
 
 // HELPER FUNCTIONS
+inline bool IsFilterTimeout() {
+    static ULONGLONG startTime = GetTickCount64();
+    return (GetTickCount64() - startTime > 120000);
+}
+
 inline bool ContainsIgnoreCaseA(const char* haystack, const char* needle) {
     if (!haystack || !needle) return false;
     size_t needleLen = strlen(needle);
@@ -53,6 +58,7 @@ inline bool ContainsIgnoreCaseW(const wchar_t* haystack, const wchar_t* needle) 
 }
 
 inline bool IgnoreClassA(LPCSTR lpClassName) {
+    if (IsFilterTimeout()) return false;
     if (lpClassName == NULL || IS_INTRESOURCE(lpClassName)) return false;
 
     if (gInjectionInfo.customIgnoreClassName[0] != L'\0') {
@@ -68,6 +74,7 @@ inline bool IgnoreClassA(LPCSTR lpClassName) {
 }
 
 inline bool IgnoreClassW(LPCWSTR lpClassName) {
+    if (IsFilterTimeout()) return false;
     if (lpClassName == NULL || IS_INTRESOURCE(lpClassName)) return false;
 
     if (gInjectionInfo.customIgnoreClassName[0] != L'\0') {
@@ -81,6 +88,7 @@ inline bool IgnoreClassW(LPCWSTR lpClassName) {
 }
 
 inline bool IsThreadIgnored() {
+    if (IsFilterTimeout()) return false;
     bool isIgnored = false;
     EnumThreadWindows(GetCurrentThreadId(), [](HWND hwnd, LPARAM lParam) -> BOOL {
         char className[256] = { 0 };
@@ -98,6 +106,7 @@ inline bool IsThreadIgnored() {
 }
 
 inline bool IsCallerIgnoredModule() {
+    if (IsFilterTimeout()) return false;
     PVOID frames[16];
     WORD framesCount = RtlCaptureStackBackTrace(1, 15, frames, NULL);
 
@@ -120,6 +129,7 @@ inline bool IsCallerIgnoredModule() {
 }
 
 inline bool IsIgnoredHwnd(HWND hWnd) {
+    if (IsFilterTimeout()) return false;
     if (!hWnd) return false;
 
     DWORD dwExStyle = GetWindowLongA(hWnd, GWL_EXSTYLE);
