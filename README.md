@@ -46,5 +46,8 @@ Options:
 | `-W`                        | Enable Unicode hooks (for modern games)                   |
 | `-Std`                      | Enable Standard hooks (can be combined with `-Ex`)        |
 | `-Ex`                       | Enable Extended hooks (can be combined with `-Std`)       |
+| `-ForceWindow`              | Enable force window hooks                                 |
+| `-SetWindowPos`             | Enable SetWindowPos hook                                  |
+| `-MoveWindow`               | Enable MoveWindow hook                                    |
 
 Project imported from [here](https://www.swbfgamers.com/index.php?topic=11251.msg112827#msg112827) by SleepKiller
